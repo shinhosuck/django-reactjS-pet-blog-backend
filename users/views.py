@@ -40,8 +40,6 @@ def user_register_view(request):
 
     if serializer.is_valid():
         user = serializer.save()
-
-        print(user.profile)
         profile = user.profile
         profile.image_url = f'http://{request.get_host()}{profile.image.url}/'
         profile.save()
@@ -103,7 +101,6 @@ def user_update_profile_view(request, id):
 def get_users_view(request):
     serializer = UserRegisterSerializer(User.objects.all(), many=True)
     users = [user['id'] for user in serializer.data]
-    print(users)
     return Response(serializer.data)
 
 

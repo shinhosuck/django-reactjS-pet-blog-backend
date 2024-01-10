@@ -146,7 +146,17 @@ def my_post_view(request):
    message = {'error':'You do not have any posts.'}
    return Response(message, status=status.HTTP_400_BAD_REQUEST)
    
-   
+
+@api_view(['GET']) 
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+def my_comments_view(request):
+   user = request.user
+   comments = user.postreply_set.all()
+   serializer = PostReplySerializer(comments, many=True)
+   return Response(serializer.data)
+
+
 @api_view(['POST']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
@@ -212,7 +222,6 @@ def create_reply_post_view(request, id):
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def already_has_reply_post_view(request, id):
-    print('ID:', id)
     post = Post.objects.get(id=id)
     try:
         replied_post = PostReply.objects.filter(post=post).get(user=request.user)
@@ -238,4 +247,6 @@ def get_replied_posts_view(request, id):
             obj['post'] = Post.objects.get(id=obj['post']).title
             formated_data.append(obj)
         return Response(formated_data, status=status.HTTP_200_OK)
-    return Response({'error': 'Replied posts no available'}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({'error': 'Replied posts not available'}, status=status.HTTP_400_BAD_REQUEST)
+
+

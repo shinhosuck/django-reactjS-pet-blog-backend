@@ -50,7 +50,6 @@ class Post(models.Model):
         return self.image_url
     
     def update_total_post(self):
-        print('hello world')
         topic_count = Post.objects.filter(topic__name=self.topic.name).count()
         self.topic.total_post += topic_count
         self.topic.save()
