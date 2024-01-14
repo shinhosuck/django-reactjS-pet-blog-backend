@@ -2,6 +2,7 @@ from . models import Post, Topic, PostReply
 from users.models import Profile
 from django.contrib.auth.models import User
 from collections import OrderedDict
+from django.forms.models import model_to_dict
 import datetime
 from django.utils import timezone
 # serializer
@@ -157,7 +158,47 @@ def my_comments_view(request):
    return Response(serializer.data)
 
 
-@api_view(['POST']) 
+@api_view(['DELETE']) 
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+def delete_comment_view(request, id):
+    user = request.user
+    comment = PostReply.objects.filter(id=id, user=user).first()
+    if comment:
+        post = comment.post
+        post.num_of_replies - 1
+        post.save()
+        comment.delete()
+    user_comments = user.postreply_set.all()
+    if user_comments.exists():
+        serializer = PostReplySerializer(user_comments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    message = {'message': 'You do not have any comments.'}
+    return Response(message, status=status.HTTP_200_OK)
+
+
+@api_view(['PUT']) 
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+def update_comment_view(request, id):
+    try:
+        comment = PostReply.objects.get(id=id)
+    except PostReply.DoesNotExist:
+        message = {'error': 'Comment does not exist.'}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    data = OrderedDict()
+    data.update(request.data)
+    data['user'] = request.user.id
+    data['post'] = comment.post.id
+    serializer = PostReplySerializer(comment, data=data)
+    if serializer.is_valid():
+        serializer.save()
+        objs = PostReplySerializer(request.user.postreply_set.all(), many=True)
+        return Response(objs.data, status=status.HTTP_202_ACCEPTED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def delete_post_view(request, id):
