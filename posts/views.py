@@ -155,6 +155,10 @@ def my_comments_view(request):
    user = request.user
    comments = user.postreply_set.all()
    serializer = PostReplySerializer(comments, many=True)
+   for obj in serializer.data:
+       post = Post.objects.get(id=obj['post'])
+       obj['replied_to'] = post.title
+       obj['post_author'] = post.author.username
    return Response(serializer.data)
 
 
