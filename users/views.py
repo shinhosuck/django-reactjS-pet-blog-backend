@@ -39,7 +39,7 @@ def user_register_view(request):
     if serializer.is_valid():
         user = serializer.save()
         profile = user.profile
-        profile.image_url = f'{fetch_host(request)}{profile.image.url}/'
+        profile.image_url = f'{fetch_host(request)}{profile.image.url}'
         profile.save()
 
         message = {
@@ -99,7 +99,7 @@ def user_update_profile_view(request, id):
 def get_users_view(request):
     users = User.objects.all()
     for user in users:
-        user.profile.image_url = f'{fetch_host(request)}{user.profile.image}/'
+        user.profile.image_url = f'{fetch_host(request)}{user.profile.image.url}'
         user.profile.save()
     serializer = UserRegisterSerializer(users, many=True)
     return Response(serializer.data)
