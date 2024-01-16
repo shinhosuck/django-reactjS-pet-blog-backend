@@ -35,6 +35,11 @@ from rest_framework.decorators import (
 
 
 
+def fetch_host(request):
+    if request.get_host() == '127.0.0.1:8000':
+        return f'http://{request.get_host()}'
+    return f'https://{request.get_host()}'
+    
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -42,6 +47,7 @@ def topics_view(request):
     topics = Topic.objects.all()
     for topic in topics:
         topic.total_post = topic.post_set.all().count()
+        topic.image_url = f'{fetch_host(request)}{topic.image.url}/'
         topic.save()
     serializer = TopicSerializer(topics, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -52,8 +58,12 @@ def topics_view(request):
 def post_list_view(request):
     formated_data = []
     posts = Post.objects.all()
+
+    for post in posts:
+        post.image_url = f'{fetch_host(request)}{post.image.url}/'
+        post.save()
+        print(post.image_url)
     serializer = PostSerializer(posts, many=True)
-    
     for obj in serializer.data:
         obj['author'] = User.objects.get(id=obj['author']).username
         obj['topic'] = Topic.objects.get(id=obj['topic']).name
@@ -93,7 +103,7 @@ def create_post_view(request, format=None):
 
     if serializer.is_valid():
         obj = serializer.save()
-        url = f'http://{request.get_host()}{obj.image.url}'
+        url = f'{fetch_host(request)}{obj.image.url}/'
         obj.create_image_url(url)
         obj.update_total_post()
         obj.save()
@@ -121,7 +131,7 @@ def update_post_view(request, id, format=None):
 
     if serializer.is_valid():
         obj = serializer.save()
-        url = f'http://{request.get_host()}{obj.image.url}'
+        url =  f'{fetch_host(request)}{obj.image.url}/'
         obj.create_image_url(url)
         obj.update_total_post()
         obj.save()

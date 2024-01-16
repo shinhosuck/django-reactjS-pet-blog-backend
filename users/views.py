@@ -22,9 +22,7 @@ from rest_framework.parsers import (
     MultiPartParser
 )
 
-
-
-
+from posts.views import fetch_host
 
 @api_view(['POST'])
 def user_register_view(request):
@@ -41,7 +39,7 @@ def user_register_view(request):
     if serializer.is_valid():
         user = serializer.save()
         profile = user.profile
-        profile.image_url = f'http://{request.get_host()}{profile.image.url}/'
+        profile.image_url = f'{fetch_host(request)}{profile.image.url}/'
         profile.save()
 
         message = {
@@ -99,8 +97,11 @@ def user_update_profile_view(request, id):
 
 @api_view(['GET'])
 def get_users_view(request):
-    serializer = UserRegisterSerializer(User.objects.all(), many=True)
-    users = [user['id'] for user in serializer.data]
+    users = User.objects.all()
+    for user in users:
+        user.profile.image_url = f'{fetch_host(request)}{user.profile.image}/'
+        user.profile.save()
+    serializer = UserRegisterSerializer(users, many=True)
     return Response(serializer.data)
 
 

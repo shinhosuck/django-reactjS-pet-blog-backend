@@ -128,7 +128,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # cors-headers
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://main--reactjs-pet-blog.netlify.app"
 ]
 
 CORS_ALLOW_METHODS = (
