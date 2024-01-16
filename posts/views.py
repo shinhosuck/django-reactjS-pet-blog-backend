@@ -47,7 +47,7 @@ def topics_view(request):
     topics = Topic.objects.all()
     for topic in topics:
         topic.total_post = topic.post_set.all().count()
-        topic.image_url = f'{fetch_host(request)}{topic.image.url}/'
+        topic.image_url = f'{fetch_host(request)}{topic.image.url}'
         topic.save()
     serializer = TopicSerializer(topics, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -60,7 +60,7 @@ def post_list_view(request):
     posts = Post.objects.all()
 
     for post in posts:
-        post.image_url = f'{fetch_host(request)}{post.image.url}/'
+        post.image_url = f'{fetch_host(request)}{post.image.url}'
         post.save()
         print(post.image_url)
     serializer = PostSerializer(posts, many=True)
@@ -103,7 +103,7 @@ def create_post_view(request, format=None):
 
     if serializer.is_valid():
         obj = serializer.save()
-        url = f'{fetch_host(request)}{obj.image.url}/'
+        url = f'{fetch_host(request)}{obj.image.url}'
         obj.create_image_url(url)
         obj.update_total_post()
         obj.save()
@@ -131,7 +131,7 @@ def update_post_view(request, id, format=None):
 
     if serializer.is_valid():
         obj = serializer.save()
-        url =  f'{fetch_host(request)}{obj.image.url}/'
+        url =  f'{fetch_host(request)}{obj.image.url}'
         obj.create_image_url(url)
         obj.update_total_post()
         obj.save()
