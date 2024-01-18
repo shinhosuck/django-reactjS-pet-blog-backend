@@ -302,6 +302,6 @@ def get_replied_posts_view(request, id):
             obj['post'] = Post.objects.get(id=obj['post']).title
             formated_data.append(obj)
         return Response(formated_data, status=status.HTTP_200_OK)
-    return Response({'error': 'Replied posts not available'}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({'error': 'Replied posts not available'})
 
 

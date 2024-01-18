@@ -14,6 +14,8 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import (
+    authentication_classes,
+    permission_classes,
     parser_classes,
     api_view
 )
@@ -21,7 +23,10 @@ from rest_framework.parsers import (
     FormParser,
     MultiPartParser
 )
-
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated
+)
 from posts.views import fetch_host
 
 @api_view(['POST'])
@@ -65,10 +70,12 @@ def retrieve_token_view(request):
         }
         return Response(message)
     if user.check_password(password):
+        print(user.profile.image_url)
         token = Token.objects.get(user=user).key
         message = {
             'token':token, 
             'username':user.username, 
+            'profile_image_url': user.profile.image_url,
             'message':'Successfully authenticated'
         }
         return Response(message, status=status.HTTP_202_ACCEPTED)
@@ -95,7 +102,9 @@ def user_update_profile_view(request, id):
     return Response({**serializer.errors, 'message': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
 def get_users_view(request):
     users = User.objects.all()
     for user in users:
