@@ -1,4 +1,4 @@
-from . models import Post, Topic, PostReply
+from . models import Post, Topic, Comment
 from users.models import Profile
 from django.contrib.auth.models import User
 from collections import OrderedDict
@@ -9,7 +9,7 @@ from django.utils import timezone
 from . serializers import (
     PostSerializer,
     TopicSerializer,
-    PostReplySerializer
+    CommentSerializer
 )
 
 # rest_framework
@@ -163,8 +163,8 @@ def my_post_view(request):
 @authentication_classes([TokenAuthentication])
 def my_comments_view(request):
    user = request.user
-   comments = user.postreply_set.all()
-   serializer = PostReplySerializer(comments, many=True)
+   comments = user.comment_set.all()
+   serializer = CommentSerializer(comments, many=True)
    for obj in serializer.data:
        post = Post.objects.get(id=obj['post'])
        obj['replied_to'] = post.title
@@ -177,15 +177,15 @@ def my_comments_view(request):
 @authentication_classes([TokenAuthentication])
 def delete_comment_view(request, id):
     user = request.user
-    comment = PostReply.objects.filter(id=id, user=user).first()
+    comment = Comment.objects.filter(id=id, user=user).first()
     if comment:
         post = comment.post
         post.num_of_replies - 1
         post.save()
         comment.delete()
-    user_comments = user.postreply_set.all()
+    user_comments = user.comment_set.all()
     if user_comments.exists():
-        serializer = PostReplySerializer(user_comments, many=True)
+        serializer = CommentSerializer(user_comments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     message = {'message': 'You do not have any comments.'}
     return Response(message, status=status.HTTP_200_OK)
@@ -196,18 +196,18 @@ def delete_comment_view(request, id):
 @authentication_classes([TokenAuthentication])
 def update_comment_view(request, id):
     try:
-        comment = PostReply.objects.get(id=id)
-    except PostReply.DoesNotExist:
+        comment = Comment.objects.get(id=id)
+    except Comment.DoesNotExist:
         message = {'error': 'Comment does not exist.'}
         return Response(message, status=status.HTTP_400_BAD_REQUEST)
     data = OrderedDict()
     data.update(request.data)
     data['user'] = request.user.id
     data['post'] = comment.post.id
-    serializer = PostReplySerializer(comment, data=data)
+    serializer = CommentSerializer(comment, data=data)
     if serializer.is_valid():
         serializer.save()
-        objs = PostReplySerializer(request.user.postreply_set.all(), many=True)
+        objs = CommentSerializer(request.user.comment_set.all(), many=True)
         return Response(objs.data, status=status.HTTP_202_ACCEPTED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -264,7 +264,7 @@ def create_reply_post_view(request, id):
     data.update(request.data)
     data['user'] = request.user.id
     data['post'] = Post.objects.get(id=id).id
-    serializer = PostReplySerializer(data=data)
+    serializer = CommentSerializer(data=data)
     if serializer.is_valid():
         reply = serializer.save()
         reply.update_total_post_replies()
@@ -279,23 +279,23 @@ def create_reply_post_view(request, id):
 def already_has_reply_post_view(request, id):
     post = Post.objects.get(id=id)
     try:
-        replied_post = PostReply.objects.filter(post=post).get(user=request.user)
-    except PostReply.DoesNotExist:
+        replied_post = Comment.objects.filter(post=post).get(user=request.user)
+    except Comment.DoesNotExist:
         return Response({'message':'Can reply'})
-    serializer = PostReplySerializer(replied_post)
+    serializer = CommentSerializer(replied_post)
     return Response(serializer.data)
 
 
 @api_view(['GET'])
-def get_replied_posts_view(request, id):
+def get_post_comments_view(request, id):
     formated_data = []
     try:
         post = Post.objects.get(id=id)
     except Post.DoesNotExist:
         return Response({'error': 'Post does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-    replied_posts = post.postreply_set.all()
-    if replied_posts.count():
-        serializer = PostReplySerializer(replied_posts, many=True)
+    post_comments = post.comment_set.all()
+    if post_comments.count():
+        serializer = CommentSerializer(post_comments, many=True)
         for obj in serializer.data:
             obj['user'] = User.objects.get(id=obj['user']).username
             obj['user_image_url'] = User.objects.get(username=obj['user']).profile.image_url

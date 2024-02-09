@@ -59,7 +59,7 @@ class Post(models.Model):
         ordering = ["-date_posted"]
 
 
-class PostReply(models.Model):
+class Comment(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE, null=True, blank=True)

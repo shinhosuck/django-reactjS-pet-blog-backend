@@ -1,5 +1,5 @@
 from django.contrib import admin
-from . models import Topic, Post, PostReply
+from . models import Topic, Post, Comment
 
 
 
@@ -18,8 +18,8 @@ class PostAdmin(admin.ModelAdmin):
 admin.site.register(Post, PostAdmin)
 
 
-class PostReplyAdmin(admin.ModelAdmin):
+class CommentAdmin(admin.ModelAdmin):
     list_display = ['user', 'post']
     search_fields = ['user__username', 'post__title', 'post__id']
 
-admin.site.register(PostReply, PostReplyAdmin)
+admin.site.register(Comment, CommentAdmin)

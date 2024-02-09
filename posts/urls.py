@@ -10,7 +10,7 @@ from . views import (
     update_post_like_view,
     create_reply_post_view,
     already_has_reply_post_view,
-    get_replied_posts_view,
+    get_post_comments_view,
     my_comments_view,
     delete_comment_view,
     update_comment_view,
@@ -34,5 +34,5 @@ urlpatterns = [
     path('update/post/<uuid:id>/like/', update_post_like_view, name='update-like'),
     path('post/<uuid:id>/reply/', create_reply_post_view, name='post-reply'),
     path('post/<uuid:id>/has-reply/', already_has_reply_post_view, name='has-reply'),
-    path('replied/posts/<uuid:id>/', get_replied_posts_view, name='replied-posts'),
+    path('post/<uuid:id>/comments/', get_post_comments_view, name='post-comments'),
 ]
