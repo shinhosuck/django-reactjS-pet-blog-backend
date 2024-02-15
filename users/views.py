@@ -102,9 +102,7 @@ def user_update_profile_view(request, id):
     return Response({**serializer.errors, 'message': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@api_view(['GET'])
 def get_users_view(request):
     users = User.objects.all()
     for user in users:
