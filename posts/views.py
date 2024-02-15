@@ -259,17 +259,17 @@ def update_post_like_view(request, id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
-def create_reply_post_view(request, id):
+def create_comment_view(request, id):
     data = OrderedDict()
     data.update(request.data)
     data['user'] = request.user.id
     data['post'] = Post.objects.get(id=id).id
     serializer = CommentSerializer(data=data)
     if serializer.is_valid():
-        reply = serializer.save()
-        reply.update_total_post_replies()
-        message = {**serializer.data, 'message':'Successfully created.'}
-        return Response(message, status=status.HTTP_201_CREATED)
+        comment = serializer.save()
+        comment_count = comment.update_comments().count()
+        obj = {**serializer.data,'comment_count':comment_count,'message':'Successfully created.'}
+        return Response(obj, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 

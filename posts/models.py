@@ -70,10 +70,13 @@ class Comment(models.Model):
     def __str__(self):
         return self.post.title
     
-    def update_total_post_replies(self):
+    def update_comments(self):
         post = self.post
-        post.num_of_replies = post.postreply_set.all().count()
+        comments = post.comment_set.all()
+        post.num_of_replies = comments.count()
         post.save()
-    
+        return comments
+
+
     class Meta:
-        verbose_name_plural = 'Post Replies'
+        ordering = ["-date_posted"]

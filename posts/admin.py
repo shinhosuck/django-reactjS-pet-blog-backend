@@ -12,14 +12,14 @@ admin.site.register( Topic, TopicAdmin)
 
 
 class PostAdmin(admin.ModelAdmin):
-    list_display = ['title', 'author', 'id']
+    list_display = ['title', 'author', 'date_posted', 'id']
     search_fields = ['topic__name']
 
 admin.site.register(Post, PostAdmin)
 
 
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ['user', 'post']
+    list_display = ['user', 'post', 'date_posted']
     search_fields = ['user__username', 'post__title', 'post__id']
 
 admin.site.register(Comment, CommentAdmin)

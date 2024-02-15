@@ -8,7 +8,7 @@ from . views import (
     update_post_view,
     delete_post_view,
     update_post_like_view,
-    create_reply_post_view,
+    create_comment_view,
     already_has_reply_post_view,
     get_post_comments_view,
     my_comments_view,
@@ -32,7 +32,7 @@ urlpatterns = [
     path('comment/<uuid:id>/update/', update_comment_view, name='update-comment'),
     path('post/<uuid:id>/delete/', delete_post_view, name='delete-post'),
     path('update/post/<uuid:id>/like/', update_post_like_view, name='update-like'),
-    path('post/<uuid:id>/reply/', create_reply_post_view, name='post-reply'),
+    path('post/<uuid:id>/create/comment/', create_comment_view, name='create-comment'),
     path('post/<uuid:id>/has-reply/', already_has_reply_post_view, name='has-reply'),
     path('post/<uuid:id>/comments/', get_post_comments_view, name='post-comments'),
 ]
