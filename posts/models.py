@@ -15,6 +15,12 @@ class Topic(models.Model):
     def __str__(self):
         return self.name
     
+    def update_total_posts(self):
+        post_count = self.post_set.all().count()
+        self.total_post = post_count
+        self.save()
+        return post_count
+    
     class Meta:
         ordering = ['name']
 
@@ -35,25 +41,25 @@ class Post(models.Model):
     def __str__(self):
         return self.title
 
-    def save(self, *args, **kwargs):
-        if not self.image:
-            self.image = '/post_images/default.jpg'
-        super().save(*args, **kwargs)
-        img = Image.open(self.image.path)
-        if img.width > 600 and img.height > 600:
-            edited_img = (500, 500)
-            img.thumbnail(edited_img)
-            img.save(self.image.path)
+    # def save(self, *args, **kwargs):
+    #     if not self.image:
+    #         self.image = '/post_images/default.jpg'
+    #     super().save(*args, **kwargs)
+    #     img = Image.open(self.image.path)
+    #     if img.width > 600 and img.height > 600:
+    #         edited_img = (500, 500)
+    #         img.thumbnail(edited_img)
+    #         img.save(self.image.path)
 
     def create_image_url(self, url):
         self.image_url = url 
         return self.image_url
-    
-    def update_total_post(self):
-        topic_count = Post.objects.filter(topic__name=self.topic.name).count()
-        self.topic.total_post += topic_count
-        self.topic.save()
-        return self.topic.total_post
+     
+    def update_total_comments(self):
+        comments = self.comment_set.all()
+        self.num_of_replies = comments.count()
+        self.save()
+        return comments.count()
 
     class Meta:
         ordering = ["-date_posted"]
@@ -70,12 +76,12 @@ class Comment(models.Model):
     def __str__(self):
         return self.post.title
     
-    def update_comments(self):
-        post = self.post
-        comments = post.comment_set.all()
-        post.num_of_replies = comments.count()
-        post.save()
-        return comments
+    # def update_comments(self):
+    #     post = self.post
+    #     comments = post.comment_set.all()
+    #     post.num_of_replies = comments.count()
+    #     post.save()
+    #     return comments
 
 
     class Meta:
