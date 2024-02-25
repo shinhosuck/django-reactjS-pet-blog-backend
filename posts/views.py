@@ -76,6 +76,7 @@ def post_list_view(request):
 def post_detail_view(request, id):
     try:
         post = Post.objects.get(id=id)
+        author_profile_image_url = post.author.profile.image_url
     except Post.DoesNotExist:
         error = {'message':'Post does not exist.'}
         return Response(error, status=status.HTTP_400_BAD_REQUEST)
@@ -85,7 +86,7 @@ def post_detail_view(request, id):
         usernames.append(User.objects.get(id=value).username)
     username = User.objects.get(id=serializer.data['author']).username
     topic = Topic.objects.get(id=serializer.data['topic']).name
-    data = {**serializer.data, 'author':username, 'topic':topic, 'like':usernames}
+    data = {**serializer.data, 'author':username, 'topic':topic, 'like':usernames, 'author_profile_image':author_profile_image_url}
     return Response(data, status=status.HTTP_200_OK)
 
 

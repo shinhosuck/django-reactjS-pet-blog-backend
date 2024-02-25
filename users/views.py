@@ -29,6 +29,7 @@ from rest_framework.permissions import (
 )
 from posts.views import fetch_host
 
+
 @api_view(['POST'])
 def user_register_view(request):
     username = request.data['username']
@@ -76,6 +77,8 @@ def retrieve_token_view(request):
             'token':token, 
             'username':user.username, 
             'profile_image_url': user.profile.image_url,
+            'num_of_posts': user.post_set.all().count(),
+            'num_of_comments':user.comment_set.all().count(),
             'message':'Successfully authenticated'
         }
         return Response(message, status=status.HTTP_202_ACCEPTED)
