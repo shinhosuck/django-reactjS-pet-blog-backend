@@ -42,7 +42,8 @@ from rest_framework.decorators import (
 )
 
 
-
+# This view is intended for changing
+# image url domain from local:8000 to pythonanywhere.com
 def set_images_url_view(request):
     topics = Topic.objects.all()
     posts = Post.objects.all()
@@ -50,16 +51,16 @@ def set_images_url_view(request):
 
     for topic in topics:
         topic.image_url = f'{fetch_host(request)}{topic.image.url}'
+        topic.save()
 
     for post in posts:
         post.image_url = f'{fetch_host(request)}{post.image.url}'
+        post.save()
 
     for user in users:
         user.profile.image_url = f'{fetch_host(request)}{user.profile.image.url}'
+        user.profile.save()
 
-    print(topics,posts,users)
-    print(connection.queries)
-    
     data = [
         {'topics': [model_to_dict(topic) for topic in topics]},
         {'posts': [model_to_dict(post) for post in posts]},
