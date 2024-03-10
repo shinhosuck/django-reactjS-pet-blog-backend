@@ -1,16 +1,25 @@
 from . models import Post, Topic, Comment
-from users.models import Profile
 from django.contrib.auth.models import User
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 from django.forms.models import model_to_dict
-import datetime
-from django.utils import timezone
+from django.db.models import (
+    Count, Q, F, Sum, Min, Avg, Max
+)
+from django.db import connection
+
+from django.contrib.auth.models import User
+from django.shortcuts import HttpResponse
+from .utils import fetch_host
+import json
+
 # serializer
 from . serializers import (
     PostSerializer,
     TopicSerializer,
     CommentSerializer
 )
+
+from users.serializers import UserRegisterSerializer
 
 # rest_framework
 from rest_framework.authentication import TokenAuthentication
@@ -26,7 +35,6 @@ from rest_framework.permissions import (
     IsAuthenticated
 )
 from rest_framework.decorators import (
-    renderer_classes,
     parser_classes,
     authentication_classes,
     permission_classes,
@@ -35,58 +43,132 @@ from rest_framework.decorators import (
 
 
 
-def fetch_host(request):
-    if request.get_host() == '127.0.0.1:8000':
-        return f'http://{request.get_host()}'
-    return f'https://{request.get_host()}'
+def set_images_url_view(request):
+    topics = Topic.objects.all()
+    posts = Post.objects.all()
+    users = User.objects.all()
+
+    for topic in topics:
+        topic.image_url = f'{fetch_host(request)}{topic.image.url}'
+
+    for post in posts:
+        post.image_url = f'{fetch_host(request)}{post.image.url}'
+
+    for user in users:
+        user.profile.image_url = f'{fetch_host(request)}{user.profile.image.url}'
+
+    print(topics,posts,users)
+    print(connection.queries)
     
+    data = [
+        {'topics': [model_to_dict(topic) for topic in topics]},
+        {'posts': [model_to_dict(post) for post in posts]},
+        {'users': [dict(OrderedDict(user)) for user in users.values('id', 'username')]}
+    ]
+       
+    return HttpResponse(data)
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def topics_view(request):
-    topics = Topic.objects.all()
-    for topic in topics:
-        topic.total_post = topic.post_set.all().count()
-        topic.image_url = f'{fetch_host(request)}{topic.image.url}'
-        topic.save()
+    topics = Topic.objects.all().prefetch_related('author')
     serializer = TopicSerializer(topics, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def topic_detail_view(request, id):
+    try:
+        topic = Topic.objects.get(id=id)
+    except Topic.DoesNotExist:
+        message = {'error': 'Topic not found'}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    serializer = TopicSerializer(topic)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST']) 
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+@parser_classes([MultiPartParser, FormParser])
+def create_topic_view(request, format=None):
+    serializer = TopicSerializer(data=request.data)
+
+    if serializer.is_valid():
+        new_topic = serializer.save()
+        new_topic.image_url = f'{fetch_host(request)}{new_topic.image.url}'
+        new_topic.user_created_topic = True
+        new_topic.save()
+
+        message = {**serializer.data, 'message':'Successfully created'}
+        return Response(message, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT']) 
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+@parser_classes([MultiPartParser, FormParser])
+def update_topic_view(request, id, format=None):
+    try:
+        topic = Topic.objects.get(id=id, author=request.user)
+    except Topic.DoesNotExist:
+        message = {'error': 'Topic not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = TopicSerializer(topic, data=request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        message = {**serializer.data, 'message':'Successfully created'}
+        return Response(message, status=status.HTTP_202_ACCEPTED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST']) 
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+def delete_topic_view(request, id):
+    try:
+        topic = Topic.objects.get(id=id)
+    except Topic.DoesNotExist:
+        message = {'error': 'Topic not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+    
+    topic.delete()
+
+    message = {'message': f'{topic.name} has been deleted successfully.'}
+    return Response(message, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def post_list_view(request):
-    formated_data = []
-    posts = Post.objects.all()
-
-    for post in posts:
-        post.image_url = f'{fetch_host(request)}{post.image.url}'
-        post.save()
-        print(post.image_url)
+    posts = Post.objects.all().prefetch_related('like', 'topic', 'author')
     serializer = PostSerializer(posts, many=True)
-    for obj in serializer.data:
-        obj['author'] = User.objects.get(id=obj['author']).username
-        obj['topic'] = Topic.objects.get(id=obj['topic']).name
-        formated_data.append(obj)
-    return Response(formated_data, status=status.HTTP_200_OK)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def post_detail_view(request, id):
     try:
-        post = Post.objects.get(id=id)
-        author_profile_image_url = post.author.profile.image_url
+        post = Post.objects.select_related('topic', 'author').prefetch_related('like').get(id=id)
     except Post.DoesNotExist:
-        error = {'message':'Post does not exist.'}
-        return Response(error, status=status.HTTP_400_BAD_REQUEST)
+        error = {'message':'Post not found.'}
+        return Response(error, status=status.HTTP_404_NOT_FOUND)
+    
     serializer = PostSerializer(post)
-    usernames = []
-    for value in serializer['like'].value:
-        usernames.append(User.objects.get(id=value).username)
-    username = User.objects.get(id=serializer.data['author']).username
-    topic = Topic.objects.get(id=serializer.data['topic']).name
-    data = {**serializer.data, 'author':username, 'topic':topic, 'like':usernames, 'author_profile_image':author_profile_image_url}
+    author_profile_image_url = post.author.profile.image_url
+    usernames = [user.username for user in post.like.all()]
+
+    data = {
+        **serializer.data, 
+        'author_profile_image_url': author_profile_image_url,
+        'like':usernames, 
+    }
     return Response(data, status=status.HTTP_200_OK)
 
 
@@ -95,24 +177,21 @@ def post_detail_view(request, id):
 @authentication_classes([TokenAuthentication])
 @parser_classes([MultiPartParser, FormParser])
 def create_post_view(request, format=None):
-
-    data = OrderedDict()
-    data.update(request.data)
-
-    topic = Topic.objects.filter(name__iexact=data['topic']).first()
-    data['author'] = request.user.id
-    data['topic'] = topic.id
-
-    serializer = PostSerializer(data=data)
-
+    try:
+        topic = Topic.objects.get(name__iexact=request.data.get('topic'))
+    except Topic.DoesNotExist:
+        message = {'error': 'Topic not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = PostSerializer(data=request.data)
     if serializer.is_valid():
-        obj = serializer.save()
-        url = f'{fetch_host(request)}{obj.image.url}'
-        obj.create_image_url(url)
-        obj.save()
+        new_post = serializer.save()
+        new_post.author = request.user
+        new_post.topic = topic
+        new_post.image_url = f'{fetch_host(request)}{new_post.image.url}'
+        new_post.save()
 
-        topic = Topic.objects.get(id=obj.topic.id)
-        topic.update_total_posts()
+        new_post.topic.update_total_post()
 
         message = {**serializer.data, 'message':'Successfully created'}
         return Response(message, status=status.HTTP_201_CREATED)
@@ -124,54 +203,41 @@ def create_post_view(request, format=None):
 @authentication_classes([TokenAuthentication])
 @parser_classes([MultiPartParser, FormParser])
 def update_post_view(request, id, format=None):
-    try:
-        post = Post.objects.filter(id=id).first()
-    except Post.DoesNotExist:
-        message = {'error': 'Post does not exist.'}
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    user = request.user
+    post = Post.objects.filter(id=id, author=user).first()
+
+    if post == None:
+        message = {'error': 'Post not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    data = OrderedDict()
-    data.update(request.data)
-    data['author'] = request.user.id
-    data['topic'] = Topic.objects.filter(name__iexact=data['topic']).first().id
-    serializer = PostSerializer(post, data=data)
+    else:
+        serializer = PostSerializer(post, data=request.data)
+        if serializer.is_valid():
+            updated_post = serializer.save()
+            if serializer.validated_data.get('image'):
+                updated_post.image_url = f'{fetch_host(request)}{updated_post.image.url}'
+            updated_post.save()
 
-    if serializer.is_valid():
-        obj = serializer.save()
-        url =  f'{fetch_host(request)}{obj.image.url}'
-        obj.create_image_url(url)
-        obj.save()
-
-        topic = Topic.objects.get(id=obj.topic.id)
-        topic.update_total_posts()
-
-        print(obj)
-
-        message = {**serializer.data, 'message':'Successfully updated'}
-        return Response(message, status=status.HTTP_202_ACCEPTED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            message = {**serializer.data, 'message':'Successfully updated'}
+            return Response(message, status=status.HTTP_202_ACCEPTED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def delete_post_view(request, id):
-
     user = request.user
+    post = Post.objects.filter(id=id, author=user).first()
 
-    try:
-        post = Post.objects.filter(author=user, id=id).first()
-    except Post.DoesNotExist:
-        message = {'error':"Something went wrong."}
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
-    
-    topic = Topic.objects.get(id=post.topic.id)
+    if post == None:
+        message = {'error':"Post not found"}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
 
-    post.delete()
-    topic.update_total_posts()
-    topic.save()
-
-    message = {'message': f'Post "{post.title}" has been deleted successfully.'}
+    else:
+        post.delete()
+        post.topic.update_total_post()
+        message = {'message': f'Post has been deleted successfully.'}
     return Response(message, status=status.HTTP_200_OK)
 
 
@@ -180,95 +246,96 @@ def delete_post_view(request, id):
 @authentication_classes([TokenAuthentication])
 def update_post_like_view(request, id):
     user = request.user
-    if user.is_authenticated:
-        try:
-            post = Post.objects.get(id=id)
-        except Post.DoesNotExist:
-            message = {
-                'error':'Post does not exist'
-            }
-            return Response(message, status=status.HTTP_400_BAD_REQUEST)
-        
-        if user not in post.like.all():
-            post.like.add(user)
-            post.save()
-            message = {'message': 'Thank you for liking.'}
-            return Response(message, status=status.HTTP_200_OK)
-        return Response({'error': 'Sorry, you can only like once.'})
-    message = {'error': 'You are not authenticated.'}
-    return Response(message, status=status.HTTP_401_UNAUTHORIZED)
 
-
-@api_view(['GET']) 
-@permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
-def my_post_view(request):
-   formated_data = []
-   user = request.user
-   posts = user.post_set.all()
-   if posts.count():
-        serializer = PostSerializer(posts, many=True)
-        for obj in serializer.data:
-            obj['author'] = User.objects.get(id=obj['author']).username
-            obj['topic'] = Topic.objects.get(id=obj['topic']).name
-            formated_data.append(obj)
-        return Response(formated_data, status=status.HTTP_200_OK)
-   message = {'error':'You do not have any posts.'}
-   return Response(message, status=status.HTTP_400_BAD_REQUEST)
-   
-
-@api_view(['GET']) 
-@permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
-def my_comments_view(request):
-   user = request.user
-   comments = user.comment_set.all()
-   serializer = CommentSerializer(comments, many=True)
-   for obj in serializer.data:
-       post = Post.objects.get(id=obj['post'])
-       obj['post_title'] = post.title
-       obj['post_author'] = post.author.username
-   return Response(serializer.data)
+    try:
+        post = Post.objects.prefetch_related('like').get(id=id)
+    except Post.DoesNotExist:
+        message = {'error':'Post not found'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+    
+    if user not in post.like.all():
+        post.like.add(user)
+        post.save()
+        message = {'message': 'Submmision was successfull.'}
+        return Response(message, status=status.HTTP_200_OK)
+    message = {'error': 'You have already submited.'}
+    return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
 def get_post_comments_view(request, id):
-    formated_data = []
+    comment_related_objects = defaultdict()
+
     try:
-        post = Post.objects.get(id=id)
+        post = Post.objects.select_related('author').prefetch_related('like', 'comments').get(id=id)
     except Post.DoesNotExist:
-        return Response({'error': 'Post does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-    post_comments = post.comment_set.all()
-    if post_comments.count():
-        serializer = CommentSerializer(post_comments, many=True)
-        for obj in serializer.data:
-            obj['user'] = User.objects.get(id=obj['user']).username
-            obj['user_image_url'] = User.objects.get(username=obj['user']).profile.image_url
-            obj['post'] = Post.objects.get(id=obj['post']).title
-            formated_data.append(obj)
-        return Response(formated_data, status=status.HTTP_200_OK)
-    return Response({'error': 'Replied posts not available'})
+        message = {'error':'Post not foune.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+    
+    comments = post.comments.all().select_related('user', 'user__profile')
+    
+    if comments.exists():
+        for comment in comments:
+            comment_related_objects[comment.id.hex] = {
+                'user_image_url':comment.user.profile.image_url,
+                'user_id': comment.user.id
+            }
+
+        serializer = CommentSerializer(comments, many=True)
+
+        for comment_data in serializer.data:
+            related_obj = comment_related_objects.get(comment_data['id'].replace('-', ''))
+            if related_obj:
+                comment_data['user_image_url'] = related_obj['user_image_url']
+                comment_data['user_id'] = related_obj['user_id']
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    message = {'error':'comments not available.'}
+    return Response(message, status=status.HTTP_404_NOT_FOUND )
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def create_comment_view(request, id):
-    post = Post.objects.get(id=id)
-    data = OrderedDict()
+    user = request.user
+    try:
+        post = Post.objects.get(id=id)
+    except Post.DoesNotExist:
+        message = {'error': 'Post not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = CommentSerializer(data=request.data)
 
-    data.update(request.data)
-    data['user'] = request.user.id
-    data['post'] = post.id
+    if serializer.is_valid():
+        new_comment = serializer.save()
+        new_comment.user = user 
+        new_comment.post = post
+        new_comment.save()
+        comment_count = post.update_total_comment()
+        message = {'message':'successfully created.'}
+        comment_obj = {**serializer.data,'comment_count':comment_count,}
+        return Response({**comment_obj, **message}, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    serializer = CommentSerializer(data=data)
+
+@api_view(['PUT']) 
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+def update_comment_view(request, id):
+
+    try:
+        comment = Comment.objects.get(id=id, user=request.user)
+    except Comment.DoesNotExist:
+        message = {'error': 'comment not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = CommentSerializer(comment, data=request.data)
 
     if serializer.is_valid():
         serializer.save()
-        comment_count = post.update_total_comments()
-        obj = {**serializer.data,'comment_count':comment_count,'message':'Successfully created.'}
-        return Response(obj, status=status.HTTP_201_CREATED)
-    
+        message = {'message':'comment successfully updated.'}
+        return Response({**serializer.data, **message}, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -276,89 +343,65 @@ def create_comment_view(request, id):
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def delete_comment_view(request, id):
-    user = request.user
-    data = request.data
-    comments_updated = []
-        
+    print(request.data)
+
     try:
-        comment = Comment.objects.get(id=id)
+        comment = Comment.objects.get(id=id, user=request.user)
     except Comment.DoesNotExist:
-        return Response({'error':'Comment does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        message = {'error':'comment not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
     
     post = comment.post
     comment.delete()
-    post.update_total_comments()
+    comment_count = post.update_total_comment()
 
-    if data:
-        user_comments = user.comment_set.all()
-        if user_comments.exists():
-            serializer = CommentSerializer(user_comments, many=True)
-            for comment in serializer.data:
-                post = Post.objects.get(id=comment['post'])
-                comment['post_author'] = post.author.username
-                comment['post_title'] = post.title
-                comments_updated.append(comment)
-            return Response(comments_updated, status=status.HTTP_200_OK)
-        message = {'message': 'You do not have any comments.'}
-        return Response(message, status=status.HTTP_200_OK)
-    
-    comments = post.comment_set.all()
-    if comments.exists():
-        serializer = CommentSerializer(comments, many=True)
-        for comment in serializer.data:
-            comment['user'] = User.objects.get(id=comment['user']).username
-            comment['user_image_url'] = User.objects.get(username=comment['user']).profile.image_url
-            comment['post'] = Post.objects.get(id=comment['post']).title
-            comments_updated.append(comment)
-        return Response(comments_updated, status=status.HTTP_200_OK)
-    message = {'error': 'No comments'}
+    if request.data.get('isMyComment'):
+        comment_count = Comment.objects.filter(user=request.user).count()
+        
+    message = {
+        'message': 'comment has been successfully deleted.',
+        'comment_count': comment_count
+    }
     return Response(message, status=status.HTTP_200_OK)
     
 
-@api_view(['PUT']) 
+@api_view(['GET']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
-def update_comment_view(request, id):
-    person = 'user' in list(request.data.keys())
+def my_post_view(request):
+   user = request.user
+   posts = user.post_set.all().prefetch_related('like', 'topic', 'author')
+   if posts.count():
+        serializer = PostSerializer(posts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+   message = {'message':'No post available.'}
+   return Response(message, status=status.HTTP_400_BAD_REQUEST)
+   
 
-    try:
-        comment = Comment.objects.get(id=id)
-    except Comment.DoesNotExist:
-        message = {'error': 'Comment does not exist.'}
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
-    
-    data = OrderedDict()
-    data.update(request.data)
-    data['user'] = request.user.id
-    data['post'] = comment.post.id
-
-    serializer = CommentSerializer(comment, data=data)
-
-    if serializer.is_valid():
-        serializer.save()
-        if not person:
-            message = {**serializer.data, 'message': 'Successfully updated.'}
-            return Response(message, status=status.HTTP_200_OK)
-
-        objs = CommentSerializer(request.user.comment_set.all(), many=True)
-        for obj in objs.data:
-            post = Post.objects.get(id=obj['post'])
-            obj['post_title'] = post.title
-            obj['post_author'] = post.author.username
-        return Response(objs.data, status=status.HTTP_202_ACCEPTED)
-    
-    message = {'error': 'Something went wrong.'}
-    return Response(message, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET'])
+@api_view(['GET']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
-def already_has_reply_post_view(request, id):
-    post = Post.objects.get(id=id)
-    try:
-        replied_post = Comment.objects.filter(post=post).get(user=request.user)
-    except Comment.DoesNotExist:
-        return Response({'message':'Can reply'})
-    serializer = CommentSerializer(replied_post)
+def my_comments_view(request):
+    user = User.objects.get(username='admin')
+    likes_and_post_author = []
+    comments = user.comment_set.all().select_related('post').prefetch_related('post__like')
+
+    for comment in comments:
+        likes_and_post_author.append({
+            comment.id.hex:{
+                    'like':[user['username'] for user in UserRegisterSerializer(
+                                    comment.post.like.all(), many=True).data], 
+                    'post_id':comment.post.id
+                }
+            })
+
+    serializer = CommentSerializer(comments, many=True)
+
+    for comment in serializer.data:
+        for obj in likes_and_post_author:
+            if comment['id'].replace('-', '') in obj:
+                comment_id = comment['id'].replace('-', '')
+                related_obj = obj.get(comment_id)
+                comment['post_id'] = related_obj['post_id']
+                comment['like'] = related_obj['like']
     return Response(serializer.data)

@@ -4,22 +4,34 @@ from PIL import Image
 import uuid
 
 
+
 class Topic(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    id = models.UUIDField(
+        primary_key=True, 
+        editable=False, 
+        default=uuid.uuid4
+    )
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
-    image = models.ImageField(upload_to="topic_images", null=True, blank=True)
+    image = models.ImageField(
+        upload_to="topic_images", 
+        default='topic_images/default.webp', 
+        null=True, blank=True
+    )
     image_url = models.URLField(null=True, blank=True)
     description = models.TextField(blank=True, null=True)
     total_post = models.IntegerField(default=0, null=True, blank=True)
+    user_created_topic = models.BooleanField(default=False)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
     
-    def update_total_posts(self):
-        post_count = self.post_set.all().count()
-        self.total_post = post_count
+    def update_total_post(self):
+        self.total_post = self.post_set.all().count()
         self.save()
-        return post_count
+        return self.total_post
     
     class Meta:
         ordering = ['name']
@@ -27,10 +39,14 @@ class Topic(models.Model):
 
 class Post(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE)
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=100)
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
-    image = models.ImageField(default="post_images/default.webp", upload_to="post_images")
+    author = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    image = models.ImageField(
+        default="post_images/default.webp", 
+        upload_to="post_images", 
+        null=True, blank=True
+    )
     image_url = models.URLField(null=True, blank=True)
     content = models.TextField()
     date_posted = models.DateTimeField(auto_now_add=True)
@@ -40,35 +56,21 @@ class Post(models.Model):
 
     def __str__(self):
         return self.title
-
-    # def save(self, *args, **kwargs):
-    #     if not self.image:
-    #         self.image = '/post_images/default.jpg'
-    #     super().save(*args, **kwargs)
-    #     img = Image.open(self.image.path)
-    #     if img.width > 600 and img.height > 600:
-    #         edited_img = (500, 500)
-    #         img.thumbnail(edited_img)
-    #         img.save(self.image.path)
-
-    def create_image_url(self, url):
-        self.image_url = url 
-        return self.image_url
-     
-    def update_total_comments(self):
-        comments = self.comment_set.all()
+ 
+    def update_total_comment(self):
+        comments = self.comments.all()
         self.num_of_replies = comments.count()
         self.save()
         return comments.count()
 
     class Meta:
-        ordering = ["-date_posted"]
+        ordering = ["topic"]
 
 
 class Comment(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, null=True, blank=True)
+    post = models.ForeignKey(Post, related_name='comments', on_delete=models.CASCADE, null=True, blank=True)
     content = models.TextField()
     date_posted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
@@ -76,13 +78,5 @@ class Comment(models.Model):
     def __str__(self):
         return self.post.title
     
-    # def update_comments(self):
-    #     post = self.post
-    #     comments = post.comment_set.all()
-    #     post.num_of_replies = comments.count()
-    #     post.save()
-    #     return comments
-
-
     class Meta:
         ordering = ["-date_posted"]

@@ -89,15 +89,18 @@ def retrieve_token_view(request):
 @api_view(['PUT'])
 @parser_classes([MultiPartParser, FormParser])
 def user_update_profile_view(request, id):
+
     try:
         user = User.objects.get(id=id)
     except User.DoesNotExist:
         message = {'error': 'User does not exist.'}
         return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    
     data = OrderedDict()
     data.update(request.data)
     data['user'] = user.id
     serializer = UpdateProfileSerializer(user, data=data)
+    
     if serializer.is_valid():
         serializer.save()
         message = {'message': 'Profile updated successfully.'}
