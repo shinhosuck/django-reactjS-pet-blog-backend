@@ -16,7 +16,8 @@ from . views import (
     my_comments_view,
     delete_comment_view,
     update_comment_view,
-    set_images_url_view
+    set_images_url_view,
+    search_view
 )
 
 
@@ -41,4 +42,5 @@ urlpatterns = [
     path('post/<uuid:id>/like/', update_post_like_view, name='update-like'),
     path('post/<uuid:id>/create/comment/', create_comment_view, name='create-comment'),
     path('post/<uuid:id>/comments/', get_post_comments_view, name='post-comments'),
+    path('search/', search_view, name='search')
 ]

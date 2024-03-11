@@ -5,12 +5,9 @@ from django.forms.models import model_to_dict
 from django.db.models import (
     Count, Q, F, Sum, Min, Avg, Max
 )
-from django.db import connection
-
 from django.contrib.auth.models import User
 from django.shortcuts import HttpResponse
 from .utils import fetch_host
-import json
 
 # serializer
 from . serializers import (
@@ -43,7 +40,7 @@ from rest_framework.decorators import (
 
 
 # This view is intended for changing
-# image url domain from local:8000 to pythonanywhere.com
+# image url domain from 127.0.0.1:8000:8000 to pythonanywhere.com
 def set_images_url_view(request):
     topics = Topic.objects.all()
     posts = Post.objects.all()
@@ -406,3 +403,32 @@ def my_comments_view(request):
                 comment['post_id'] = related_obj['post_id']
                 comment['like'] = related_obj['like']
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+def search_view(request):
+    total_results = []
+    search = str(request.GET.get('q')).split()
+
+    for word in search:
+        post_results = [post for post in Post.objects.filter(
+            Q(title__icontains=word) | Q(content__icontains=word)).values()]
+        if total_results:
+            total_results.extend(post_results)
+        else:
+            total_results = post_results
+    
+    total_results = [
+        dict(post_set) 
+        for post_set in set(tuple(post.items()) 
+        for post in total_results)
+    ]
+
+    if total_results:
+        serializer = PostSerializer(total_results, many=True)
+        data = list(serializer.data)
+        data.append({'message':'Your search results.'})
+        return Response(data, status=status.HTTP_200_OK)
+    
+    message = {'message': 'No results'}
+    return Response(message, status=status.HTTP_404_NOT_FOUND)
