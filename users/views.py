@@ -70,15 +70,15 @@ def retrieve_token_view(request):
             'status':status.HTTP_400_BAD_REQUEST
         }
         return Response(message)
+    
     if user.check_password(password):
-        print(user.profile.image_url)
         token = Token.objects.get(user=user).key
         message = {
             'token':token, 
             'username':user.username, 
             'profile_image_url': user.profile.image_url,
-            'num_of_posts': user.post_set.all().count(),
-            'num_of_comments':user.comment_set.all().count(),
+            'num_of_posts': user.post_set.all().count() or 0,
+            'num_of_comments':user.comment_set.all().count() or 0,
             'message':'Successfully authenticated'
         }
         return Response(message, status=status.HTTP_202_ACCEPTED)

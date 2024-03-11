@@ -70,6 +70,11 @@ def set_images_url_view(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def topics_view(request):
+    comments = Comment.objects.all()
+    for comment in comments:
+        if not comment.user:
+            comment.delete()
+
     topics = Topic.objects.all().prefetch_related('author')
     serializer = TopicSerializer(topics, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -380,7 +385,7 @@ def my_post_view(request):
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def my_comments_view(request):
-    user = User.objects.get(username='admin')
+    user = request.user
     likes_and_post_author = []
     comments = user.comment_set.all().select_related('post').prefetch_related('post__like')
 
