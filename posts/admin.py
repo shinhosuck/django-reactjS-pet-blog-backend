@@ -12,7 +12,7 @@ admin.site.register( Topic, TopicAdmin)
 
 
 class PostAdmin(admin.ModelAdmin):
-    list_display = ['title', 'topic', 'author', 'date_posted', 'id']
+    list_display = ['title', 'topic', 'featured', 'author', 'date_posted', 'id']
     search_fields = ['topic__name']
 
 admin.site.register(Post, PostAdmin)

@@ -53,6 +53,7 @@ class Post(models.Model):
     date_updated = models.DateTimeField(auto_now=True)
     like = models.ManyToManyField(User, blank=True, related_name='post_like')
     num_of_replies = models.IntegerField(default=0, null=True, blank=True)
+    featured = models.BooleanField(default=False)
 
     def __str__(self):
         return self.title

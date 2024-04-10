@@ -17,12 +17,10 @@ from . views import (
     delete_comment_view,
     update_comment_view,
     set_images_url_view,
-    search_view
+    search_view,
 )
 
-
 app_name = 'posts'
-
 
 urlpatterns = [
     path('set/image/url/',set_images_url_view, name='set-image-url' ),

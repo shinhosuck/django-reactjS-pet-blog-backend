@@ -7,7 +7,7 @@ from django.db.models import (
 )
 from django.contrib.auth.models import User
 from django.shortcuts import HttpResponse
-from .utils import fetch_host
+from utils.get_host import fetch_host
 
 # serializer
 from . serializers import (
@@ -42,13 +42,13 @@ from rest_framework.decorators import (
 # This view is intended for changing
 # image url domain from 127.0.0.1:8000:8000 to pythonanywhere.com
 def set_images_url_view(request):
-    topics = Topic.objects.all()
+    # topics = Topic.objects.all()
     posts = Post.objects.all()
     users = User.objects.all()
 
-    for topic in topics:
-        topic.image_url = f'{fetch_host(request)}{topic.image.url}'
-        topic.save()
+    # for topic in topics:
+    #     topic.image_url = f'{fetch_host(request)}{topic.image.url}'
+    #     topic.save()
 
     for post in posts:
         post.image_url = f'{fetch_host(request)}{post.image.url}'
@@ -59,7 +59,7 @@ def set_images_url_view(request):
         user.profile.save()
 
     data = [
-        {'topics': [model_to_dict(topic) for topic in topics]},
+        # {'topics': [model_to_dict(topic) for topic in topics]},
         {'posts': [model_to_dict(post) for post in posts]},
         {'users': [dict(OrderedDict(user)) for user in users.values('id', 'username')]}
     ]
@@ -70,13 +70,8 @@ def set_images_url_view(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def topics_view(request):
-    comments = Comment.objects.all()
-    for comment in comments:
-        if not comment.user:
-            comment.delete()
-
-    topics = Topic.objects.all().prefetch_related('author')
-    serializer = TopicSerializer(topics, many=True)
+    topics = Topic.objects.all().prefetch_related('author', 'post_set')
+    serializer = TopicSerializer(topics, many=True, context={'request':request})
     return Response(serializer.data, status=status.HTTP_200_OK)
     
 
@@ -88,7 +83,7 @@ def topic_detail_view(request, id):
     except Topic.DoesNotExist:
         message = {'error': 'Topic not found'}
         return Response(message, status=status.HTTP_400_BAD_REQUEST)
-    serializer = TopicSerializer(topic)
+    serializer = TopicSerializer(topic, context={'request':request})
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -157,6 +152,7 @@ def post_list_view(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def post_detail_view(request, id):
+    
     try:
         post = Post.objects.select_related('topic', 'author').prefetch_related('like').get(id=id)
     except Post.DoesNotExist:
@@ -437,3 +433,5 @@ def search_view(request):
     
     message = {'message': 'No results'}
     return Response(message, status=status.HTTP_404_NOT_FOUND)
+
+
