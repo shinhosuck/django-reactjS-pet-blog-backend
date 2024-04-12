@@ -156,8 +156,8 @@ def post_detail_view(request, id):
     try:
         post = Post.objects.select_related('topic', 'author').prefetch_related('like').get(id=id)
     except Post.DoesNotExist:
-        error = {'message':'Post not found.'}
-        return Response(error, status=status.HTTP_404_NOT_FOUND)
+        message = {'error':'Post not found.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
     
     serializer = PostSerializer(post)
     author_profile_image_url = post.author.profile.image_url
@@ -281,8 +281,8 @@ def get_post_comments_view(request, id):
             }
 
         serializer = CommentSerializer(comments, many=True)
-
         for comment_data in serializer.data:
+            
             related_obj = comment_related_objects.get(comment_data['id'].replace('-', ''))
             if related_obj:
                 comment_data['user_image_url'] = related_obj['user_image_url']

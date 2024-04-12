@@ -27,7 +27,7 @@ from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated
 )
-from posts.views import fetch_host
+from utils.get_host import fetch_host
 
 
 @api_view(['POST'])
