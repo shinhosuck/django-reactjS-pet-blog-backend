@@ -1,8 +1,15 @@
-from django.contrib.auth.models import User
+
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
+from django.contrib.auth import get_user_model
+from django.db.models import Count
 from . models import Profile
+from posts.models import Post
+from utils.get_host import fetch_host
 
+
+
+User = get_user_model()
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -23,10 +30,38 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return user
     
 
-class UpdateProfileSerializer(serializers.ModelSerializer):
+class ProfileSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField(method_name='get_image_url', read_only=True)
+    qs_count = serializers.SerializerMethodField(method_name='get_qs_count', read_only=True)
+    token = serializers.SerializerMethodField(method_name='get_token', read_only=True)
     class Meta:
         model = Profile
-        fields = '__all__'
+        fields = [
+            'token',
+            'user', 
+            'image_url', 
+            'username', 
+            'qs_count'
+        ]
+
+
+    def get_image_url(self, obj):
+        host = fetch_host(self.context['request'])
+        url = f"{host}{obj.image.url}"
+        return url
+    
+
+    def get_qs_count(self, obj):
+        posts = obj.user.posts.prefetch_related('comments')
+        comment_count = posts.aggregate(comment_count=Count('comments__post'))
+        post_count = posts.aggregate(post_count = Count('author__id'))
+        return {**comment_count, **post_count}
+    
+
+    def get_token(self, obj):
+        user = obj.user
+        token = Token.objects.get(user=user).key
+        return token
 
     
     def update(self, instance, validated_data):

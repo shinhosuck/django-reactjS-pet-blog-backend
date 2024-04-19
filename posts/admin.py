@@ -1,5 +1,5 @@
 from django.contrib import admin
-from . models import Topic, Post, Comment
+from . models import Topic, Post, Comment, Message, NewsLetterSubscription
 
 
 
@@ -23,3 +23,17 @@ class CommentAdmin(admin.ModelAdmin):
     search_fields = ['user__username', 'post__title', 'post__id']
 
 admin.site.register(Comment, CommentAdmin)
+
+
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ['id', 'email', 'created']
+    search_fields = ['email']
+
+admin.site.register(Message, MessageAdmin)
+
+
+class NewsLetterSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'first', 'last', 'email']
+    search_fields = ['email']
+
+admin.site.register(NewsLetterSubscription, NewsLetterSubscriptionAdmin)

@@ -1,11 +1,12 @@
 from django.contrib.auth.models import User
 from django.forms.models import model_to_dict
 from collections import OrderedDict
+from . models import Profile
 
 # serializer
 from . serializers import (
     UserRegisterSerializer,
-    UpdateProfileSerializer
+    ProfileSerializer
 )
 
 # rest_framework
@@ -27,34 +28,22 @@ from rest_framework.permissions import (
     AllowAny,
     IsAuthenticated
 )
-from utils.get_host import fetch_host
 
 
 @api_view(['POST'])
 def user_register_view(request):
     username = request.data['username']
+
     if User.objects.filter(username__iexact=username).first():
-        message = {
-            "error":f'Username \'{username}\' already exists.',
-            'status':status.HTTP_400_BAD_REQUEST
-        }
-        return Response(message)
+        message = {"error":f'Username \'{username}\' already exists.'}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    
+    serializer = UserRegisterSerializer(data=request.data, context={'request':request})
 
-    serializer = UserRegisterSerializer(data=request.data)
-
-    if serializer.is_valid():
-        user = serializer.save()
-        profile = user.profile
-        profile.image_url = f'{fetch_host(request)}{profile.image.url}'
-        profile.save()
-
-        message = {
-            **serializer.data,
-            'message':'Successfully registered!',
-            'status':status.HTTP_201_CREATED
-        }
-        return Response(message)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if serializer.is_valid(raise_exception=True):
+        serializer.save()
+        message = {'message':'Successfully registered!',}
+        return Response(message, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -65,22 +54,14 @@ def retrieve_token_view(request):
     try:
         user = User.objects.get(username=username)
     except User.DoesNotExist:
-        message = {
-            'error':'User does not exist.',
-            'status':status.HTTP_400_BAD_REQUEST
-        }
-        return Response(message)
+        message = {'error':'User does not exist.'}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    
+    serializer = ProfileSerializer(user.profile, context={'request':request})
     
     if user.check_password(password):
-        token = Token.objects.get(user=user).key
-        message = {
-            'token':token, 
-            'username':user.username, 
-            'profile_image_url': user.profile.image_url,
-            'num_of_posts': user.post_set.all().count() or 0,
-            'num_of_comments':user.comment_set.all().count() or 0,
-            'message':'Successfully authenticated'
-        }
+        message = {'message':'Successfully authenticated'}
+        message = {**message, **serializer.data}
         return Response(message, status=status.HTTP_202_ACCEPTED)
     return Response({'error':'password or username did not match'}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -99,7 +80,7 @@ def user_update_profile_view(request, id):
     data = OrderedDict()
     data.update(request.data)
     data['user'] = user.id
-    serializer = UpdateProfileSerializer(user, data=data)
+    serializer = ProfileSerializer(user, data=data)
     
     if serializer.is_valid():
         serializer.save()
@@ -110,11 +91,8 @@ def user_update_profile_view(request, id):
 
 @api_view(['GET'])
 def get_users_view(request):
-    users = User.objects.all()
-    for user in users:
-        user.profile.image_url = f'{fetch_host(request)}{user.profile.image.url}'
-        user.profile.save()
-    serializer = UserRegisterSerializer(users, many=True)
+    users = Profile.objects.all()
+    serializer = ProfileSerializer(users, many=True, context={'request':request})
     return Response(serializer.data)
 
 

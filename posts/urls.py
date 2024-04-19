@@ -16,14 +16,16 @@ from . views import (
     my_comments_view,
     delete_comment_view,
     update_comment_view,
-    set_images_url_view,
+    # set_images_url_view,
     search_view,
+    add_message_view,
+    news_letter_subscription_view
 )
 
 app_name = 'posts'
 
 urlpatterns = [
-    path('set/image/url/',set_images_url_view, name='set-image-url' ),
+    # path('set/image/url/',set_images_url_view, name='set-image-url' ),
     path('topics/', topics_view, name='topics'),
     path('create/topic/', create_topic_view, name='create-topic'),
     path('topic/<uuid:id>/detail/', topic_detail_view, name='topic-detail'),
@@ -40,5 +42,7 @@ urlpatterns = [
     path('post/<uuid:id>/like/', update_post_like_view, name='update-like'),
     path('post/<uuid:id>/create/comment/', create_comment_view, name='create-comment'),
     path('post/<uuid:id>/comments/', get_post_comments_view, name='post-comments'),
-    path('search/', search_view, name='search')
+    path('search/', search_view, name='search'),
+    path('message/', add_message_view, name='add-message'),
+    path('news-letter-subscription/', news_letter_subscription_view, name='news-letter-subscription')
 ]
