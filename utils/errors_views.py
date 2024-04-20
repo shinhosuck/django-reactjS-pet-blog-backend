@@ -14,7 +14,6 @@ def error_404(request, exception):
 
 
 def error_500(request):
-    print('hello world')
     message = {
         'error': 'Server error. Please try again later.',
         'status_code': 500

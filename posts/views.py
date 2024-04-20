@@ -117,7 +117,6 @@ def delete_topic_view(request, id):
 @permission_classes([AllowAny])
 def post_list_view(request):
     posts = Post.objects.prefetch_related('likes', 'topic', 'author', 'comments')
-    print(posts)
     serializer = PostSerializer(posts, context={'request': request}, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -189,11 +188,9 @@ def delete_post_view(request, id):
     if post == None:
         message = {'error':"Post not found"}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
-
-    else:
-        post.delete()
-        post.topic.update_total_post()
-        message = {'message': f'Post has been deleted successfully.'}
+    
+    post.delete()
+    message = {'message': f'Post has been deleted successfully.'}
     return Response(message, status=status.HTTP_200_OK)
 
 
@@ -220,34 +217,17 @@ def update_post_like_view(request, id):
 
 @api_view(['GET'])
 def get_post_comments_view(request, id):
-    comment_related_objects = defaultdict()
-
     try:
-        post = Post.objects.select_related('author').prefetch_related('like', 'comments').get(id=id)
+        post = Post.objects.prefetch_related('likes', 'comments').get(id=id)
     except Post.DoesNotExist:
-        message = {'error':'Post not foune.'}
+        message = {'error':'Post does not exist.'}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    comments = post.comments.all().select_related('user', 'user__profile')
+    comments = post.comments.select_related('user')
     
     if comments.exists():
-        for comment in comments:
-            comment_related_objects[comment.id.hex] = {
-                'user_image_url':comment.user.profile.image_url,
-                'user_id': comment.user.id
-            }
-
-        serializer = CommentSerializer(comments, many=True)
-        for comment_data in serializer.data:
-            
-            related_obj = comment_related_objects.get(comment_data['id'].replace('-', ''))
-            if related_obj:
-                comment_data['user_image_url'] = related_obj['user_image_url']
-                comment_data['user_id'] = related_obj['user_id']
+        serializer = CommentSerializer(comments, many=True, context={'request':request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    message = {'error':'comments not available.'}
-    return Response(message, status=status.HTTP_404_NOT_FOUND )
 
 
 @api_view(['POST'])
@@ -263,18 +243,12 @@ def create_comment_view(request, id):
     
     serializer = CommentSerializer(data=request.data)
 
-    if serializer.is_valid():
-        new_comment = serializer.save()
-        new_comment.user = user 
-        new_comment.post = post
-        new_comment.save()
-        comment_count = post.update_total_comment()
+    if serializer.is_valid(raise_exception=True):
+        serializer.save(user=user, post=post)
         message = {'message':'successfully created.'}
-        comment_obj = {**serializer.data,'comment_count':comment_count,}
-        return Response({**comment_obj, **message}, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+        return Response(message, status=status.HTTP_201_CREATED)
+    
+    
 @api_view(['PUT']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
@@ -338,7 +312,7 @@ def my_post_view(request):
 def my_comments_view(request):
     user = request.user
     comments = user.comment_set.select_related('post').prefetch_related('post__likes')
-    serializer = CommentSerializer(comments, many=True)
+    serializer = CommentSerializer(comments, many=True, context={'request':request})
     return Response(serializer.data)
 
 

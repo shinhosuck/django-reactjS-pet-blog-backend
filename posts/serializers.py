@@ -50,13 +50,15 @@ class PostSerializer(serializers.ModelSerializer):
     author_profile_image_url = serializers.SerializerMethodField(method_name='get_author_profile_image_url', read_only=True)
     image_url = serializers.SerializerMethodField(method_name='get_image_url', read_only=True)
     qs_count = serializers.SerializerMethodField(method_name='get_qs_count', read_only=True)
-
+    image = serializers.ImageField(required=False, read_only=True)
+    
     class Meta:
         model = Post 
         fields = [
             'id',
             'topic',
             'title',
+            'image',
             'author',
             'author_profile_image_url',
             'image_url',
@@ -90,13 +92,14 @@ class CommentSerializer(serializers.ModelSerializer):
     post = serializers.StringRelatedField(many=False, required=False)
     post_id = serializers.PrimaryKeyRelatedField(source='post', read_only=True)
     post_likes = serializers.SerializerMethodField(method_name='get_post_likes', read_only=True)
-
+    user_profile_image_url = serializers.SerializerMethodField(method_name='get_user_profile_image_url', read_only=True)
 
     class Meta:
         model = Comment
         fields = [
             'id',
             'user',
+            'user_profile_image_url',
             'post',
             'post_id',
             'content',
@@ -105,11 +108,14 @@ class CommentSerializer(serializers.ModelSerializer):
             'post_likes'
         ]
 
-
     def get_post_likes(self, obj):
         post_likes = obj.post.likes.values_list('username', flat=True)
         return post_likes
-
+    
+    def get_user_profile_image_url(self, obj):
+        host = fetch_host(self.context['request'])
+        url = f"{host}{obj.user.profile.image.url}"
+        return url
 
 
 class MessageSerializer(serializers.ModelSerializer):

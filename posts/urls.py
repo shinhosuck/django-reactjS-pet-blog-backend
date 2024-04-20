@@ -16,7 +16,6 @@ from . views import (
     my_comments_view,
     delete_comment_view,
     update_comment_view,
-    # set_images_url_view,
     search_view,
     add_message_view,
     news_letter_subscription_view
@@ -25,7 +24,6 @@ from . views import (
 app_name = 'posts'
 
 urlpatterns = [
-    # path('set/image/url/',set_images_url_view, name='set-image-url' ),
     path('topics/', topics_view, name='topics'),
     path('create/topic/', create_topic_view, name='create-topic'),
     path('topic/<uuid:id>/detail/', topic_detail_view, name='topic-detail'),
