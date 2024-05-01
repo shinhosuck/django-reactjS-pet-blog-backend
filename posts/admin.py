@@ -19,8 +19,8 @@ admin.site.register(Post, PostAdmin)
 
 
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ['user', 'post', 'date_posted']
-    search_fields = ['user__username', 'post__title', 'post__id']
+    list_display = ['id', 'user', 'post', 'date_posted', 'parent']
+    search_fields = ['id', 'user__username', 'post__title', 'post__id', 'parent__id']
 
 admin.site.register(Comment, CommentAdmin)
 

@@ -12,16 +12,21 @@ from . views import (
     delete_post_view,
     update_post_like_view,
     create_comment_view,
+    create_child_comment,
     get_post_comments_view,
     my_comments_view,
     delete_comment_view,
     update_comment_view,
+    comment_children_comment_view,
     search_view,
     add_message_view,
     news_letter_subscription_view
 )
 
 app_name = 'posts'
+
+handler404 = 'utils.errors_views.error_404'
+handler500 = 'utils.errors_views.error_500'
 
 urlpatterns = [
     path('topics/', topics_view, name='topics'),
@@ -39,6 +44,8 @@ urlpatterns = [
     path('comment/<uuid:id>/update/', update_comment_view, name='update-comment'),
     path('post/<uuid:id>/like/', update_post_like_view, name='update-like'),
     path('post/<uuid:id>/create/comment/', create_comment_view, name='create-comment'),
+    path('comments/<uuid:id>/comment/', create_child_comment, name='create-child-comment'),
+    path('comment/<uuid:id>/children/', comment_children_comment_view, name='comment-children-comment'),
     path('post/<uuid:id>/comments/', get_post_comments_view, name='post-comments'),
     path('search/', search_view, name='search'),
     path('message/', add_message_view, name='add-message'),

@@ -199,20 +199,20 @@ def delete_post_view(request, id):
 @authentication_classes([TokenAuthentication])
 def update_post_like_view(request, id):
     user = request.user
-
+    print(user)
     try:
-        post = Post.objects.prefetch_related('like').get(id=id)
+        post = Post.objects.prefetch_related('likes').get(id=id)
     except Post.DoesNotExist:
         message = {'error':'Post not found'}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    if user not in post.like.all():
-        post.like.add(user)
-        post.save()
-        message = {'message': 'Submmision was successfull.'}
-        return Response(message, status=status.HTTP_200_OK)
-    message = {'error': 'You have already submited.'}
-    return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    # if user not in post.likes.all():
+    post.likes.add(user)
+    post.save()
+    message = {'message': 'Submmision was successfull.'}
+    return Response(message, status=status.HTTP_200_OK)
+    # message = {'error': 'You have already submited.'}
+    # return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -223,11 +223,13 @@ def get_post_comments_view(request, id):
         message = {'error':'Post does not exist.'}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    comments = post.comments.select_related('user')
+    comments = post.comments.filter(parent=None).select_related('user')
     
     if comments.exists():
         serializer = CommentSerializer(comments, many=True, context={'request':request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+    message = {'error':'No comments available'}
+    return Response(message)
 
 
 @api_view(['POST'])
@@ -241,26 +243,47 @@ def create_comment_view(request, id):
         message = {'error': 'Post not found.'}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    serializer = CommentSerializer(data=request.data)
+    serializer = CommentSerializer(data=request.data, context={'request':request})
 
     if serializer.is_valid(raise_exception=True):
         serializer.save(user=user, post=post)
-        message = {'message':'successfully created.'}
+        message = {**serializer.data,'message':'successfully created.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+def create_child_comment(request, id):
+    user = request.user
+    post_id = request.data.get('postId')
+    try:
+        comment = Comment.objects.get(id=id)
+    except Comment.DoesNotExist:
+        message = {'error': 'Comment does not exist.'}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = CommentSerializer(data=request.data, context={'request':request})
+
+    if serializer.is_valid(raise_exception=True):
+        post = Post.objects.filter(id=post_id).first()
+        comment = serializer.save(user=user, post=post, parent=comment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    message = {'error':serializer.errors}
+    return Response(message, status=status.HTTP_400_BAD_REQUEST)
     
 @api_view(['PUT']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def update_comment_view(request, id):
-
+    user = request.user
     try:
-        comment = Comment.objects.get(id=id, user=request.user)
+        comment = Comment.objects.get(id=id, user=user)
     except Comment.DoesNotExist:
         message = {'error': 'comment not found.'}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    serializer = CommentSerializer(comment, data=request.data)
+    serializer = CommentSerializer(comment, data=request.data, context={'request':request})
 
     if serializer.is_valid():
         serializer.save()
@@ -279,19 +302,29 @@ def delete_comment_view(request, id):
         message = {'error':'comment not found.'}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    post = comment.post
-    comment.delete()
-    comment_count = post.update_total_comment()
-
-    if request.data.get('isMyComment'):
-        comment_count = Comment.objects.filter(user=request.user).count()
-        
+    comment.delete()      
     message = {
         'message': 'comment has been successfully deleted.',
-        'comment_count': comment_count
     }
     return Response(message, status=status.HTTP_200_OK)
-    
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def comment_children_comment_view(request, id):
+    try:
+        comment = Comment.objects.prefetch_related('children').get(id=id)
+    except Comment.DoesNotExist:
+        message = {'error':'Comment does not exist.'}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    comments = comment.children.all()
+
+    if comments.exists():
+        serializer = CommentSerializer(comments, many=True, context={'request':request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    message = {'error':'No comments'}
+    return Response(message)
+
 
 @api_view(['GET']) 
 @permission_classes([IsAuthenticated])

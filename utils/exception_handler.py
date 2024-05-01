@@ -1,4 +1,4 @@
-
+from django.http import JsonResponse
 from rest_framework.views import exception_handler
 
 def custom_exception_handler(exc, context):
@@ -32,5 +32,4 @@ def handle_authentication_error(exc, context, response):
 #         'error': 'some error'
 #     }
 #     return response
-
 

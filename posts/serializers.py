@@ -51,6 +51,7 @@ class PostSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(method_name='get_image_url', read_only=True)
     qs_count = serializers.SerializerMethodField(method_name='get_qs_count', read_only=True)
     image = serializers.ImageField(required=False, read_only=True)
+    likes = serializers.SerializerMethodField(read_only=True, method_name='get_likes')
     
     class Meta:
         model = Post 
@@ -65,7 +66,8 @@ class PostSerializer(serializers.ModelSerializer):
             'content',
             'date_posted',
             'featured',
-            'qs_count'
+            'qs_count',
+            'likes'
         ]
 
     def get_image_url(self, obj):
@@ -83,9 +85,9 @@ class PostSerializer(serializers.ModelSerializer):
         url = f"{host}{obj.author.profile.image.url}"
         return url
     
-
-
-
+    def get_likes(self, obj):
+        users = obj.likes.all().values_list('username', flat=True)
+        return users
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(many=False, required=False)
@@ -93,6 +95,7 @@ class CommentSerializer(serializers.ModelSerializer):
     post_id = serializers.PrimaryKeyRelatedField(source='post', read_only=True)
     post_likes = serializers.SerializerMethodField(method_name='get_post_likes', read_only=True)
     user_profile_image_url = serializers.SerializerMethodField(method_name='get_user_profile_image_url', read_only=True)
+    parent_id = serializers.PrimaryKeyRelatedField(source='parent', read_only=True)
 
     class Meta:
         model = Comment
@@ -105,12 +108,15 @@ class CommentSerializer(serializers.ModelSerializer):
             'content',
             'date_posted',
             'date_updated',
-            'post_likes'
+            'post_likes',
+            'parent_id'
         ]
 
     def get_post_likes(self, obj):
-        post_likes = obj.post.likes.values_list('username', flat=True)
-        return post_likes
+        if obj.post:
+            post_likes = obj.post.likes.values_list('username', flat=True)
+            return post_likes
+        return None
     
     def get_user_profile_image_url(self, obj):
         host = fetch_host(self.context['request'])

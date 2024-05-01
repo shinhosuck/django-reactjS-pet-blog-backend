@@ -6,7 +6,6 @@ import debug_toolbar
 from django.conf import settings
 from django.conf.urls.static import static
 
-
 handler404 = 'utils.errors_views.error_404'
 handler500 = 'utils.errors_views.error_500'
 
