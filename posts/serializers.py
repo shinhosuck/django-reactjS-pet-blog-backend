@@ -50,7 +50,7 @@ class PostSerializer(serializers.ModelSerializer):
     author_profile_image_url = serializers.SerializerMethodField(method_name='get_author_profile_image_url', read_only=True)
     image_url = serializers.SerializerMethodField(method_name='get_image_url', read_only=True)
     qs_count = serializers.SerializerMethodField(method_name='get_qs_count', read_only=True)
-    image = serializers.ImageField(required=False, read_only=True)
+    # image = serializers.ImageField(required=False, read_only=True)
     likes = serializers.SerializerMethodField(read_only=True, method_name='get_likes')
     
     class Meta:
@@ -59,7 +59,7 @@ class PostSerializer(serializers.ModelSerializer):
             'id',
             'topic',
             'title',
-            'image',
+            # 'image',
             'author',
             'author_profile_image_url',
             'image_url',

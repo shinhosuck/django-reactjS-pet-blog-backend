@@ -168,14 +168,15 @@ def update_post_view(request, id, format=None):
     else:
         serializer = PostSerializer(post, data=request.data, context={'request':request})
         if serializer.is_valid():
-            updated_post = serializer.save()
-            if serializer.validated_data.get('image'):
-                updated_post.image_url = f'{fetch_host(request)}{updated_post.image.url}'
-            updated_post.save()
+            serializer.save()
+            # if serializer.validated_data.get('image'):
+            #     updated_post.image_url = f'{fetch_host(request)}{updated_post.image.url}'
+            # updated_post.save()
 
             message = {**serializer.data, 'message':'Successfully updated'}
             return Response(message, status=status.HTTP_202_ACCEPTED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        message = {'error': serializer.errors}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE']) 
