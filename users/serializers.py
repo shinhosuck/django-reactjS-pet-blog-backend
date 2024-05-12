@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Count, Sum
 from . models import Profile
 from posts.models import Post
 from utils.get_host import fetch_host
@@ -53,8 +53,8 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     def get_qs_count(self, obj):
         posts = obj.user.posts.prefetch_related('comments')
-        comment_count = posts.aggregate(comment_count=Count('comments__post'))
         post_count = posts.aggregate(post_count = Count('author__id'))
+        comment_count = posts.annotate(total = Count('comments')).aggregate(comment_count=Sum('total'))
         return {**comment_count, **post_count}
     
 

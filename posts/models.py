@@ -18,7 +18,6 @@ class Topic(models.Model):
         default='topic_images/default.webp', 
         null=True, blank=True
     )
-    image_url = models.URLField(null=True, blank=True)
     description = models.TextField(blank=True, null=True)
     user_created_topic = models.BooleanField(default=False)
     created = models.DateTimeField(auto_now_add=True)
@@ -44,7 +43,7 @@ class Post(models.Model):
     content = models.TextField()
     date_posted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-    likes = models.ManyToManyField(User)
+    likes = models.ManyToManyField(User, null=True, blank=True)
     featured = models.BooleanField(default=False)
 
     def __str__(self):
