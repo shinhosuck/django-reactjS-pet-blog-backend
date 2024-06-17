@@ -1,22 +1,26 @@
 from django.db import models
 from PIL import Image
-from django.contrib.auth.models import User 
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(default="user_images/default.png", upload_to="user_images", null=True, blank=True)
-    # image_url = models.URLField(null=True, blank=True)
     username = models.CharField(max_length=100, null=True, blank=True)
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
+    following = models.ManyToManyField(User, blank=True, related_name='followers')
 
     def __str__(self):
         return f"{self.user.username} Profile"
-
+    
+    @property
+    def user_id(self):
+        return self.user.id
 
     def save(self, *args, **kwargs):
         if not self.image:

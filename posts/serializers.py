@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from django.db.models import Count
+from django.contrib.auth import get_user_model
 from . models import (
     Post, 
     Topic, 
@@ -9,6 +10,7 @@ from . models import (
     NewsLetterSubscription,
 )
 from utils.get_host import fetch_host
+User = get_user_model()
 
 
 class TopicSerializer(serializers.ModelSerializer):
@@ -50,7 +52,6 @@ class PostSerializer(serializers.ModelSerializer):
     author_profile_image_url = serializers.SerializerMethodField(method_name='get_author_profile_image_url', read_only=True)
     image_url = serializers.SerializerMethodField(method_name='get_image_url', read_only=True)
     qs_count = serializers.SerializerMethodField(method_name='get_qs_count', read_only=True)
-    # image = serializers.ImageField(required=False, read_only=True)
     likes = serializers.SerializerMethodField(read_only=True, method_name='get_likes')
     
     class Meta:
@@ -59,7 +60,6 @@ class PostSerializer(serializers.ModelSerializer):
             'id',
             'topic',
             'title',
-            # 'image',
             'author',
             'author_profile_image_url',
             'image_url',
@@ -82,12 +82,13 @@ class PostSerializer(serializers.ModelSerializer):
     
     def get_author_profile_image_url(self, obj):
         host = fetch_host(self.context['request'])
-        url = f"{host}{obj.author.profile.image.url}"
-        return url
+        img_url = f"{host}{obj.author.profile.image.url}"
+        return img_url
     
     def get_likes(self, obj):
         users = obj.likes.all().values_list('username', flat=True)
         return users
+
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(many=False, required=False)

@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.forms.models import model_to_dict
 from collections import OrderedDict
 from . models import Profile
@@ -26,11 +26,15 @@ from rest_framework.parsers import (
 )
 from rest_framework.permissions import (
     AllowAny,
-    IsAuthenticated
+    IsAuthenticated,
+    IsAdminUser
 )
+
+User = get_user_model()
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def user_register_view(request):
     username = request.data['username']
 
@@ -47,6 +51,7 @@ def user_register_view(request):
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def retrieve_token_view(request):
     data = request.data 
     username = data['username']
@@ -57,20 +62,20 @@ def retrieve_token_view(request):
         message = {'error':'User does not exist.'}
         return Response(message, status=status.HTTP_400_BAD_REQUEST)
     
-    serializer = ProfileSerializer(user.profile, context={'request':request})
-    
     if user.check_password(password):
-        message = {'message':'Successfully authenticated'}
-        message = {**message, **serializer.data}
+        serializer = ProfileSerializer(user.profile, context={'request':request})
+        message = {**serializer.data, 'message':'Successfully authenticated'}
         return Response(message, status=status.HTTP_202_ACCEPTED)
-    return Response({'error':'password or username did not match'}, status=status.HTTP_401_UNAUTHORIZED)
-
+    
+    message = {'error':'Password or username did not match'}
+    return Response(message, status=status.HTTP_401_UNAUTHORIZED)
 
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
 @parser_classes([MultiPartParser, FormParser])
-def user_update_profile_view(request, id):
-
+def update_profile_view(request, id):
     try:
         user = User.objects.get(id=id)
     except User.DoesNotExist:
@@ -86,24 +91,40 @@ def user_update_profile_view(request, id):
         serializer.save()
         message = {'message': 'Profile updated successfully.'}
         return Response(message, status=status.HTTP_202_ACCEPTED)
-    return Response({**serializer.errors, 'message': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    message = {'error': 'There was an error. Please try again.'}
+    return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
 
+# Admin use only
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
 def get_users_view(request):
+    user = request.user
+    if not user.is_superuser:
+        message = {
+            'error': 'You are not allowed to perform this action',
+            'status': status.HTTP_400_BAD_REQUEST
+        }
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    
     users = Profile.objects.all()
     serializer = ProfileSerializer(users, many=True, context={'request':request})
-    return Response(serializer.data)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
 def user_detail_view(request, id):
     try:
         user = User.objects.get(id=id)
     except User.DoesNotExist :
         message = {'error': 'User does not exist.'}
         return Response(message, status=status.HTTP_400_BAD_REQUEST)
-    serializer = UserRegisterSerializer(user)
+    
+    serializer = ProfileSerializer(user.profile, context={'request': request})
     return Response(serializer.data)
 
 

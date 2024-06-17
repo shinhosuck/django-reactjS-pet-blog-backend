@@ -37,11 +37,15 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = [
-            'token',
-            'user', 
-            'image_url', 
+            'user',
+            'user_id',
             'username', 
-            'qs_count'
+            'first_name',
+            'last_name',
+            'email',
+            'qs_count',
+            'token',
+            'image_url', 
         ]
 
 

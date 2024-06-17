@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <table style="padding: 1rem">
+        <tr>
+            <th style="text-align: start; font-size: 1.5rem;">
+                Pawpal
+            </th>
+        </tr>
+        <tr>
+            <td style="padding: 1rem 0; font-size: 1.2rem; max-width: 400px;">
+                {% if full_name %}
+                    <span style="font-weight: bold; font-size: 1.2rem;">{{ full_name }}</span>, thank you for subscribing to our newsletter!
+                {% else %}
+                    <span style="font-weight: bold; font-size: 1.2rem;">{{ email }}</span>, thank you for the message!
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                {% if full_name %}
+                    <img style="width: 400px; height: auto; display: block;" src="https://pawpals.pythonanywhere.com/media/post_images/puppy_care_and_training.webp" alt="">
+                {% else %}
+                    <img style="width: 400px; height: auto; display: block;" src="https://shots.codepen.io/username/pen/JjdwrYm-800.jpg" alt="">
+                 {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 1rem 0; max-width: 400px; font-size: 1.2rem;">
+                Lorem ipsum dolor, sit amet consectetur adipisicing elit. 
+                Asperiores eum illo nisi ipsa cum mollitia provident sequi 
+                voluptate? Delectus, deleniti?
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 1rem 0;">
+                <a 
+                    style="padding:0.6rem 1.5rem; color: #ffffff; background: #ff4500; border-radius: 25px; text-decoration: none; font-size: 1.2rem;" 
+                    href="https://reactjs-pet-blog.netlify.app/"
+                >
+                    Visit Pawpal
+                </a>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+

@@ -43,7 +43,7 @@ class Post(models.Model):
     content = models.TextField()
     date_posted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-    likes = models.ManyToManyField(User, null=True, blank=True)
+    likes = models.ManyToManyField(User, blank=True)
     featured = models.BooleanField(default=False)
 
     def __str__(self):
