@@ -13,7 +13,8 @@ class Profile(models.Model):
     first_name = models.CharField(max_length=100, null=True, blank=True)
     last_name = models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
-    following = models.ManyToManyField(User, blank=True, related_name='followers')
+    follow = models.ManyToManyField(User, blank=True, related_name='following')
+    follower = models.ManyToManyField(User, blank=True, related_name='followers')
 
     def __str__(self):
         return f"{self.user.username} Profile"
@@ -25,7 +26,7 @@ class Profile(models.Model):
     def save(self, *args, **kwargs):
         if not self.image:
             self.image = 'user_images/default.png'
-        super(Profile, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
         img = Image.open(self.image.path)
         if img.width > 400 or img.height > 400:
             new_img = (300, 300)

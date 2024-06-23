@@ -48,6 +48,11 @@ class Post(models.Model):
 
     def __str__(self):
         return self.title
+    
+    def save(self, *args, **kwargs):
+        if not self.image:
+            self.image = 'post_images/default.webp'
+        super().save(*args, **kwargs)
  
     class Meta:
         ordering = ["topic"]

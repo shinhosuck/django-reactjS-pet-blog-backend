@@ -1,6 +1,5 @@
-from django.contrib.auth import get_user_model
-from django.forms.models import model_to_dict
 from collections import OrderedDict
+from django.http import QueryDict 
 from . models import Profile
 
 # serializer
@@ -29,6 +28,7 @@ from rest_framework.permissions import (
     IsAuthenticated,
     IsAdminUser
 )
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -75,22 +75,30 @@ def retrieve_token_view(request):
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 @parser_classes([MultiPartParser, FormParser])
-def update_profile_view(request, id):
+def update_profile_view(request, format=None):
+    user = request.user
+
     try:
-        user = User.objects.get(id=id)
+        user = User.objects.get(id=user.id)
     except User.DoesNotExist:
         message = {'error': 'User does not exist.'}
         return Response(message, status=status.HTTP_400_BAD_REQUEST)
-    
+
     data = OrderedDict()
     data.update(request.data)
-    data['user'] = user.id
-    serializer = ProfileSerializer(user, data=data)
+
+    if isinstance(data['image'], str):
+        data.pop('image')
+
+    query_dict = QueryDict('', mutable=True)
+    query_dict.update(data)
+
+    serializer = ProfileSerializer(user.profile, data=data, context={'request':request})
     
     if serializer.is_valid():
         serializer.save()
-        message = {'message': 'Profile updated successfully.'}
-        return Response(message, status=status.HTTP_202_ACCEPTED)
+        message = {'message': 'Profile updated successfully'}
+        return Response({**serializer.data, **message}, status=status.HTTP_202_ACCEPTED)
     
     message = {'error': 'There was an error. Please try again.'}
     return Response(message, status=status.HTTP_400_BAD_REQUEST)
@@ -128,3 +136,38 @@ def user_detail_view(request, id):
     return Response(serializer.data)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication])
+def follow_view(request, username):
+    choice = request.GET.get('choice')
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        message = {
+            'error': 'User does not exist', 
+            'status':status.HTTP_400_BAD_REQUEST
+        }
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    
+    current_user = request.user
+    profile = user.profile
+    message = ''
+    
+    if choice == 'unfollow':
+        profile.follower.remove(current_user.id)
+        current_user.profile.follow.remove(profile.user.id)
+        message = f'You are now unfollowing {profile.user.username}'
+    elif choice == 'follow':
+        profile.follower.add(request.user.id)
+        current_user.profile.follow.add(profile.user.id)
+        message = f'You are now following {profile.user.username}'
+    
+    serializer = ProfileSerializer(current_user.profile, context={'request': request})
+    
+    message = {
+        'data': serializer.data,
+        'message': message,
+        'status': status.HTTP_202_ACCEPTED
+    }
+    return Response(message, status=status.HTTP_202_ACCEPTED)

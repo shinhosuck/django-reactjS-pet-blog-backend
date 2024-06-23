@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from rest_framework.views import exception_handler
 
+
+
 def custom_exception_handler(exc, context):
     handlers = {
         # 'ValidationError': handle_generic_error,

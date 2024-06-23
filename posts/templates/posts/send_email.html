@@ -9,7 +9,7 @@
     <table style="padding: 1rem">
         <tr>
             <th style="text-align: start; font-size: 1.5rem;">
-                Pawpal
+                Canine Blog
             </th>
         </tr>
         <tr>
@@ -32,9 +32,28 @@
         </tr>
         <tr>
             <td style="padding: 1rem 0; max-width: 400px; font-size: 1.2rem;">
-                Lorem ipsum dolor, sit amet consectetur adipisicing elit. 
-                Asperiores eum illo nisi ipsa cum mollitia provident sequi 
-                voluptate? Delectus, deleniti?
+                {% if full_name %}
+                    <p>
+                        Thank you for subscribing to our newsletter. We are thrilled 
+                        to welcome you to our community. Your support is incredibly valuable to us, 
+                        and we look forward to keeping you up to date with our latest news.
+                    </p>
+                {% else %}
+                    <p>
+                        We received your message. We will contact you as soon as possible.
+                    </p>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 1rem 0; max-width: 400px; font-size: 1.2rem;">
+                If you have any questions or feedback, please do not hesitate to reach out to us.
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 1rem 0; max-width: 400px; font-size: 1.2rem;">
+                Best regards,
+                Canine Blog Team
             </td>
         </tr>
         <tr>
@@ -43,7 +62,7 @@
                     style="padding:0.6rem 1.5rem; color: #ffffff; background: #ff4500; border-radius: 25px; text-decoration: none; font-size: 1.2rem;" 
                     href="https://reactjs-pet-blog.netlify.app/"
                 >
-                    Visit Pawpal
+                    Visit Canine Blog
                 </a>
             </td>
         </tr>

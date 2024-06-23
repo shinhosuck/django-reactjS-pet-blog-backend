@@ -1,15 +1,9 @@
 from . models import Post, Topic, Comment
-from django.contrib.auth.models import User
-from collections import defaultdict, OrderedDict
-from django.forms.models import model_to_dict
-from django.db.models import (
-    Count, Q, F, Sum, Min, Avg, Max
-)
-from django.contrib.auth.models import User
-from django.shortcuts import HttpResponse
-
+from collections import OrderedDict
+from django.http import QueryDict
+from django.db.models import Q
 from utils.get_host import fetch_host
-from utils.send_email import send_email
+from .tasks import send_email
 
 # serializer
 from . serializers import (
@@ -19,8 +13,6 @@ from . serializers import (
     MessageSerializer,
     NewsLetterSubscriptionSerializer
 )
-
-from users.serializers import UserRegisterSerializer
 
 # rest_framework
 from rest_framework.authentication import TokenAuthentication
@@ -155,11 +147,15 @@ def create_post_view(request, format=None):
         return Response(message, status=status.HTTP_201_CREATED)
     
 
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
 @api_view(['PUT']) 
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 @parser_classes([MultiPartParser, FormParser])
 def update_post_view(request, id, format=None):
+    
     user = request.user
     post = Post.objects.filter(id=id, author=user).first()
 
@@ -167,14 +163,26 @@ def update_post_view(request, id, format=None):
         message = {'error': 'Post not found.'}
         return Response(message, status=status.HTTP_404_NOT_FOUND)
     
-    else:
-        serializer = PostSerializer(post, data=request.data, context={'request':request})
-        if serializer.is_valid():
-            serializer.save()
-            message = {**serializer.data, 'message':'Successfully updated'}
-            return Response(message, status=status.HTTP_202_ACCEPTED)
-        message = {'error': serializer.errors}
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
+    data = OrderedDict()
+    data.update(request.data)
+
+    if isinstance(data['image'], str):
+        data.pop('image')
+
+    query_dict = QueryDict('', mutable=True)
+    query_dict.update(data)
+
+    serializer = PostSerializer(
+            post, 
+            data=query_dict, 
+            context={'request':request}
+        )
+    if serializer.is_valid():
+        serializer.save()
+        message = {**serializer.data, 'message':'Successfully updated'}
+        return Response(message, status=status.HTTP_202_ACCEPTED)
+    message = {'error': serializer.errors}
+    return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE']) 
@@ -349,41 +357,33 @@ def my_comments_view(request):
 
 @api_view(['GET'])
 def search_view(request):
-    search_results = []
-    search = str(request.data.get('q')).split()
+    results = None
+    query = request.GET.get('q') or None
 
-    for word in search:
-        post_results = [
-            post for post in Post.objects.filter(
-            Q(title__icontains=word) | Q(content__icontains=word)).values()
-        ]
-        if search_results:
-            search_results.extend(post_results)
-        else:
-            search_results = post_results
-
-    if search_results:
-        qs = []
-        search_results = [dict(post) for post in set(tuple(post.items()) for post in search_results)]
-        for post in search_results:
-            qs.append(Post.objects.get(id=post.get("id")))
-        serializer = PostSerializer(qs, many=True, context={'request':request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    if query:
+        for q in [char for char in query.split(' ') if char]:
+            queryset = Post.objects.filter(Q(title__icontains=q) | Q(content__icontains=q) | Q(topic__name__icontains=q))
+            if not results:
+                results = queryset
+            else:
+                results.union(queryset).order_by('title')
+                
+    if not results.exists() or query == None:
+        message = {'error':'Your search did\'t return anything!'}
+        return Response(message, status=status.HTTP_400_BAD_REQUEST)
     
-    message = {
-            'error': 'Your search did not return anything',
-            'status': status.HTTP_404_NOT_FOUND
-        }
-    return Response(message)
-
-
+    serializer = PostSerializer(results, context={'request':request}, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def add_message_view(request):
+def message_view(request):
     serializer = MessageSerializer(data=request.data)
+
     if serializer.is_valid():
         obj = serializer.save()
-        send_email(request, 'Message Received', obj.email)
+        send_email.delay(email=obj.email, full_name=None, subject_type='Message Received')
         message = {'message': 'Message successfully sent.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
@@ -395,35 +395,12 @@ def add_message_view(request):
 @permission_classes([AllowAny])
 def news_letter_subscription_view(request):
     serializer = NewsLetterSubscriptionSerializer(data=request.data)
+
     if serializer.is_valid():
-        obj = serializer.save()
-        send_email(request,"Newsletter Subscription", obj.email, f'{obj.first} {obj.last}')
+        new_sub = serializer.save()
+        send_email.delay(new_sub.email, f'{new_sub.first} {new_sub.last}', "Newsletter Subscription")
         message = {'message': 'Successfully subscribed to our newsletter.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
     message = {'error': 'Unable to send message.'}
     return Response(message, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
-def update_follow_view(request, username):
-    try:
-        user = User.objects.get(username=username)
-    except User.DoesNotExist:
-        message = {
-            'error': 'User does not exist', 
-            'status':status.HTTP_400_BAD_REQUEST
-        }
-        return Response(message, status=status.HTTP_400_BAD_REQUEST)
-    
-    user_profile = request.user.profile
-    user_profile.following.add(user)
-    user_profile.save()
-
-    message = {
-        'message': f'Your are following {user.username}.',
-        'status': status.HTTP_202_ACCEPTED
-    }
-    return Response(message, status=status.HTTP_202_ACCEPTED)

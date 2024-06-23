@@ -19,9 +19,8 @@ from . views import (
     update_comment_view,
     comment_children_comment_view,
     search_view,
-    add_message_view,
+    message_view,
     news_letter_subscription_view,
-    update_follow_view
 )
 
 app_name = 'posts'
@@ -49,7 +48,6 @@ urlpatterns = [
     path('comment/<uuid:id>/children/', comment_children_comment_view, name='comment-children-comment'),
     path('post/<uuid:id>/comments/', get_post_comments_view, name='post-comments'),
     path('search/', search_view, name='search'),
-    path('message/', add_message_view, name='add-message'),
+    path('message/', message_view, name='add-message'),
     path('news-letter-subscription/', news_letter_subscription_view, name='news-letter-subscription'),
-    path('follow/user/<str:username>/', update_follow_view, name='update-follow'),
 ]

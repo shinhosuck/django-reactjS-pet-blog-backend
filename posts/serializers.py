@@ -53,11 +53,14 @@ class PostSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(method_name='get_image_url', read_only=True)
     qs_count = serializers.SerializerMethodField(method_name='get_qs_count', read_only=True)
     likes = serializers.SerializerMethodField(read_only=True, method_name='get_likes')
+    image = serializers.ImageField(use_url=False, required=False)
+
     
     class Meta:
         model = Post 
         fields = [
             'id',
+            'image',
             'topic',
             'title',
             'author',
@@ -69,6 +72,7 @@ class PostSerializer(serializers.ModelSerializer):
             'qs_count',
             'likes'
         ]
+
 
     def get_image_url(self, obj):
         host = fetch_host(self.context['request'])
