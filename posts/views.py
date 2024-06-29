@@ -359,6 +359,7 @@ def my_comments_view(request):
 def search_view(request):
     results = None
     query = request.GET.get('q') or None
+    print(query)
 
     if query:
         for q in [char for char in query.split(' ') if char]:
@@ -369,11 +370,12 @@ def search_view(request):
                 results.union(queryset).order_by('title')
                 
     if not results.exists() or query == None:
-        message = {'error':'Your search did\'t return anything!'}
+        message = {'query':query,'error':'Your search did\'t return anything!'}
         return Response(message, status=status.HTTP_400_BAD_REQUEST)
     
     serializer = PostSerializer(results, context={'request':request}, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    data = {'data':serializer.data, 'query':query}
+    return Response(data, status=status.HTTP_200_OK)
     
     
 @api_view(['POST'])
