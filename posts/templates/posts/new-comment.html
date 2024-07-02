@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Comment</title>
+</head>
+<body>
+    <table style="padding: 1rem">
+        <tr>
+            <th style="text-align: start; font-size: 1.5rem;">
+                Canine Blog
+            </th>
+        </tr>
+        <tr>
+            <td style="padding: 1rem 0; font-size: 1.2rem; max-width: 400px;">
+                User <span style="color:blue">{{ username }}</span> 
+                {% if not parent_comment %}
+                    has commented on your post!
+                {% else %} 
+                    has commented on your comment!
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="font-size: 1.5rem; max-width: 400px;">
+                <a href="{{ url_to_comment }}">{{ post }}</a>
+            </td>
+        </tr>
+        {% if parent_comment %}
+            <tr>
+                <td style="padding: 1rem 0; font-size: 1.1rem; max-width: 400px;">
+                    Your comment: {{ parent_comment }}
+                </td>
+            </tr>
+        {% endif %}
+        <tr>
+            <td style="font-size: 1.1rem; padding-bottom: 1rem; max-width: 400px;">
+                Comment: {{ comment }}
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 1rem 0;">
+                <a 
+                    style="
+                        padding:0.7rem 1.4rem; 
+                        color: #ffffff; 
+                        background: #ff4500; 
+                        border-radius: 30px; 
+                        text-decoration: none; 
+                        font-size: 1.1rem;
+                    " 
+                    href="{{ url_to_comment }}"
+                >
+                    View Comment
+                </a>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+

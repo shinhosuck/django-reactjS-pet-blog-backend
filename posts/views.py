@@ -3,7 +3,7 @@ from collections import OrderedDict
 from django.http import QueryDict
 from django.db.models import Q
 from utils.get_host import fetch_host
-from .tasks import send_email
+from .tasks import subscribe, contact_us, new_comment
 
 # serializer
 from . serializers import (
@@ -239,6 +239,7 @@ def get_post_comments_view(request, id):
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def create_comment_view(request, id):
+    url_to_comment = request.GET.get('url')
     user = request.user
     try:
         post = Post.objects.get(id=id)
@@ -249,7 +250,15 @@ def create_comment_view(request, id):
     serializer = CommentSerializer(data=request.data, context={'request':request})
 
     if serializer.is_valid(raise_exception=True):
-        serializer.save(user=user, post=post)
+        comment = serializer.save(user=user, post=post)
+        new_comment.delay(
+            post.author.email, 
+            user.username, 
+            post.title, 
+            comment.content, 
+            url_to_comment, 
+            parent_comment=None
+        )
         message = {**serializer.data,'message':'successfully created.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
@@ -258,6 +267,7 @@ def create_comment_view(request, id):
 @permission_classes([IsAuthenticated])
 @authentication_classes([TokenAuthentication])
 def create_child_comment(request, id):
+    url_to_comment = request.GET.get('url')
     user = request.user
     post_id = request.data.get('postId')
     try:
@@ -270,7 +280,15 @@ def create_child_comment(request, id):
 
     if serializer.is_valid(raise_exception=True):
         post = Post.objects.filter(id=post_id).first()
-        comment = serializer.save(user=user, post=post, parent=comment)
+        child_comment = serializer.save(user=user, post=post, parent=comment)
+        new_comment.delay(
+            comment.user.email, 
+            user.username, 
+            post.title, 
+            child_comment.content, 
+            url_to_comment, 
+            comment.content
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     message = {'error':serializer.errors}
     return Response(message, status=status.HTTP_400_BAD_REQUEST)
@@ -359,8 +377,7 @@ def my_comments_view(request):
 def search_view(request):
     results = None
     query = request.GET.get('q') or None
-    print(query)
-
+    
     if query:
         for q in [char for char in query.split(' ') if char]:
             queryset = Post.objects.filter(Q(title__icontains=q) | Q(content__icontains=q) | Q(topic__name__icontains=q))
@@ -385,7 +402,7 @@ def message_view(request):
 
     if serializer.is_valid():
         obj = serializer.save()
-        send_email.delay(email=obj.email, full_name=None, subject_type='Message Received')
+        contact_us.delay(obj.email, 'Message Received')
         message = {'message': 'Message successfully sent.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
@@ -400,7 +417,7 @@ def news_letter_subscription_view(request):
 
     if serializer.is_valid():
         new_sub = serializer.save()
-        send_email.delay(new_sub.email, f'{new_sub.first} {new_sub.last}', "Newsletter Subscription")
+        subscribe.delay(new_sub.email, f'{new_sub.first} {new_sub.last}', "Newsletter Subscription")
         message = {'message': 'Successfully subscribed to our newsletter.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
