@@ -11,6 +11,7 @@ def create_profile(sender, instance, created, **kwargs ):
     if created:
         profile = Profile.objects.create(user=instance)
         profile.username = instance.username
+        profile.email = instance.email
 
 
 @receiver(post_save, sender=User)
