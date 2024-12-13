@@ -3,7 +3,12 @@ from collections import OrderedDict
 from django.http import QueryDict
 from django.db.models import Q
 from utils.get_host import fetch_host
-from .tasks import subscribe, contact_us, new_comment
+# from .tasks import subscribe, contact_us, new_comment
+from utils.send_email import (
+    subscribe,
+    new_comment,
+    contact_us
+)
 
 # serializer
 from . serializers import (
@@ -281,7 +286,15 @@ def create_child_comment(request, id):
     if serializer.is_valid(raise_exception=True):
         post = Post.objects.filter(id=post_id).first()
         child_comment = serializer.save(user=user, post=post, parent=comment)
-        new_comment.delay(
+        # new_comment.delay(
+        #     comment.user.email, 
+        #     user.username, 
+        #     post.title, 
+        #     child_comment.content, 
+        #     url_to_comment, 
+        #     comment.content
+        # )
+        new_comment(
             comment.user.email, 
             user.username, 
             post.title, 
@@ -402,7 +415,8 @@ def message_view(request):
 
     if serializer.is_valid():
         obj = serializer.save()
-        contact_us.delay(obj.email, 'Message Received')
+        # contact_us.delay(obj.email, 'Message Received')
+        contact_us(obj.email, 'Message Received')
         message = {'message': 'Message successfully sent.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
@@ -417,7 +431,8 @@ def news_letter_subscription_view(request):
 
     if serializer.is_valid():
         new_sub = serializer.save()
-        subscribe.delay(new_sub.email, f'{new_sub.first} {new_sub.last}', "Newsletter Subscription")
+        # subscribe.delay(new_sub.email, f'{new_sub.first} {new_sub.last}', "Newsletter Subscription")
+        subscribe(new_sub.email, f'{new_sub.first} {new_sub.last}', "Newsletter Subscription")
         message = {'message': 'Successfully subscribed to our newsletter.'}
         return Response(message, status=status.HTTP_201_CREATED)
     
