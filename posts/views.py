@@ -256,7 +256,15 @@ def create_comment_view(request, id):
 
     if serializer.is_valid(raise_exception=True):
         comment = serializer.save(user=user, post=post)
-        new_comment.delay(
+        # new_comment.delay(
+        #     post.author.email, 
+        #     user.username, 
+        #     post.title, 
+        #     comment.content, 
+        #     url_to_comment, 
+        #     parent_comment=None
+        # )
+        new_comment(
             post.author.email, 
             user.username, 
             post.title, 
